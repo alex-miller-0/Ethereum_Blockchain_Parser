@@ -3,7 +3,7 @@ An exploration of the Ethereum blockchain!
 
 I want to crawl the Ethereum blockchain and pull out the transactions so that I can explore how the network has evolved over time. 
 
-A geth instance downloads the blockchain and processes it, saving the blocks as LevelDB files in the specified data directory (`~/.ethereum` by default). The geth instance can be queried via RPC with `web3.eth.getBlock(X)` to get the `X-th` block, which is of the form:
+A geth instance downloads the blockchain and processes it, saving the blocks as LevelDB files in the specified data directory (`~/.ethereum` by default). The geth instance can be queried via RPC with `eth_getBlockByNumber([block, true])` to get the `X-th` block (with `true` indicating we want the transactional data included), which is of the form:
   
     {
       difficulty: 12549332509227,
@@ -23,32 +23,23 @@ A geth instance downloads the blockchain and processes it, saving the blocks as 
       timestamp: 1455404053,
       totalDifficulty: 7135202464334937706,
       transactions: [
-        "0xea1093d492a1dcb1bef708f771a99a96ff05dcab81ca76c31940300177fcf49f",
-        "0xe9e91f1ee4b56c0df2e9f06c2b8c27c6076195a88a7b8537ba8313d80e6f124e"
+        {
+          blockHash: "0x2052ce710a08094b81b5047ea9df5119773ce4b263a23d86659fa7293251055e",
+          blockNumber: 1284937,
+          from: "0x1f57f826caf594f7a837d9fc092456870a289365",
+          gas: 22050,
+          gasPrice: 20000000000,
+          hash: "0x654ac26084ee6e40767e8735f38274ef5f594454a4d34cfdd70c93aa95be0c64",
+          input: "0x",
+          nonce: 6610,
+          to: "0xfbb1b73c4f0bda4f67dca266ce6ef42f520fbb98",
+          transactionIndex: 27,
+          value: 201544820000000000
+        }
       ],
       transactionsRoot: "0x65ba887fcb0826f616d01f736c1d2d677bcabde2f7fc25aa91cfbc0b3bad5cb3",
       uncles: []
     } 
 
-
-What I'm really interested in looking at are transactions (e.g. new addresses being created and ether being sent between them). The transaction hashes are stored in the `transactions` parameter in the above block, but again this is a hash; the individual addresses and metadata are not stored in the block itself.
-
-However, again geth can be queried with `web3.eth.getTransaction("Y")`, where `Y` is the transaction hash, to return the transaction data, which is of the form:
-
-    {
-      blockHash: "0x2052ce710a08094b81b5047ea9df5119773ce4b263a23d86659fa7293251055e",
-      blockNumber: 1284937,
-      from: "0x1f57f826caf594f7a837d9fc092456870a289365",
-      gas: 22050,
-      gasPrice: 20000000000,
-      hash: "0x654ac26084ee6e40767e8735f38274ef5f594454a4d34cfdd70c93aa95be0c64",
-      input: "0x",
-      nonce: 6610,
-      to: "0xfbb1b73c4f0bda4f67dca266ce6ef42f520fbb98",
-      transactionIndex: 27,
-      value: 201544820000000000
-    }
-
-
-Using the `from` and `to` addresses, I can map the traffic of ether through the network as time processes (since there is a UNIX timestamp in the block itself). 
+Using the `from` and `to` addresses in the `transactions` array, I can map the traffic of ether through the network as time processes (since there is a unix `timestamp` in the block itself). 
 
