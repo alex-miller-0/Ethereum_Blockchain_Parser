@@ -3,7 +3,7 @@
 
 # Boot geth, the node server, and mongo
 echo "Booting geth..."
-(geth --rpc --rpcport 27016 > ./logs/boot.txt 2>&1) &
+(geth --rpc --rpcport 8545 > ./logs/boot.txt 2>&1) &
 echo "Booting mongo..."
 (mongod --dbpath mongo/data --port 27017 > ./logs/boot.txt 2>&1) &
 echo "Booting node..."

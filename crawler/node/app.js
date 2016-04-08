@@ -8,15 +8,17 @@
 	Imports
 **************************/
 // General packages
-var body_parser = require('body-parser'),
+var bodyParser = require('body-parser'),
+	http = require('http'),
 	express = require('express');
 
 // Internal imports
-var config = require('./config');
+var config = require('./config.js'),
+	routes = require('./routes.js');
 
 
 // Run node on each CPU in the cluster
-(function init_cluster() {
+/*(function init_cluster() {
 	var cluster = require('cluster');
 	if (cluster.isMaster) {
 		var cpuCount = require('os').cpus().length;
@@ -31,7 +33,7 @@ var config = require('./config');
 		})
 	}
 	else setup_servers();
-})();
+})();*/
 setup_servers();
 
 /**************************
@@ -46,7 +48,7 @@ setup_servers();
 function setup_servers() {
 	var api = express();
 
-	var HTTP_PORT = config.node_port;
+	var HTTP_PORT = config.node.port;
 
 	// Config allowed headers
 	var auth_config = function(req, res, next) {
@@ -58,16 +60,24 @@ function setup_servers() {
 	};
 
 	// Config with any third party dependancies
-	var basic_config = function() { api.use(express.bodyParser()) };
+	var basic_config = function() { 
+		api.use(bodyParser.json());
+		api.use(bodyParser.urlencoded({
+  			extended: true
+		}));
+	};
 
 	// Start web server
 	var start_servers = function() {
-		http.createServer(api).listen(HTTP_PORT, null);
+		http.createServer(api).listen(HTTP_PORT, function(){
+			console.log("Booted on port ", HTTP_PORT)
+		});
 	}
 
 	basic_config();
 	api.use(auth_config);
 	routes_config(api);
+	start_servers();
 
 };
 
@@ -78,5 +88,5 @@ function setup_servers() {
  * @param app - express app
  */
 function routes_config(app) {
-	console.log("Configuring routes")
+	app.post('/get_block', routes.get_block);
 };

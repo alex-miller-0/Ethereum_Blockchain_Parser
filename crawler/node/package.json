@@ -5,8 +5,10 @@
   "author": "Alex Miller",
   "dependencies": {
   	"body-parser": "latest",
-  	"express": "3.10.5",
+  	"express": "latest",
   	"mongodb": "latest",
+    "node-json-rpc": "latest",
+    "request": "latest",
   	"web3": "latest"
   }
 }
