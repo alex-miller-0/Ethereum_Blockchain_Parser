@@ -1,0 +1,12 @@
+{
+  "name": "ethereum_crawler",
+  "version": "0.0.0",
+  "description": "etherem blockchain crawler",
+  "author": "Alex Miller",
+  "dependencies": {
+  	"body-parser": "latest",
+  	"express": "3.10.5",
+  	"mongodb": "latest",
+  	"web3": "latest"
+  }
+}
