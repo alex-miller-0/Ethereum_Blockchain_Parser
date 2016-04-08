@@ -4,11 +4,11 @@
   "description": "etherem blockchain crawler",
   "author": "Alex Miller",
   "dependencies": {
+    "assert": "latest",
   	"body-parser": "latest",
   	"express": "latest",
   	"mongodb": "latest",
     "node-json-rpc": "latest",
-    "request": "latest",
   	"web3": "latest"
   }
 }

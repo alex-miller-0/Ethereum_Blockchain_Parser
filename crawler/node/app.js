@@ -17,6 +17,10 @@ var config = require('./config.js'),
 	routes = require('./routes.js');
 
 
+
+
+
+
 // Run node on each CPU in the cluster
 /*(function init_cluster() {
 	var cluster = require('cluster');
@@ -48,8 +52,6 @@ setup_servers();
 function setup_servers() {
 	var api = express();
 
-	var HTTP_PORT = config.node.port;
-
 	// Config allowed headers
 	var auth_config = function(req, res, next) {
 		res.header('Access-Control-Allow-Origin', '*');
@@ -67,18 +69,14 @@ function setup_servers() {
 		}));
 	};
 
-	// Start web server
-	var start_servers = function() {
-		http.createServer(api).listen(HTTP_PORT, function(){
-			console.log("Booted on port ", HTTP_PORT)
-		});
-	}
+	
 
 	basic_config();
 	api.use(auth_config);
 	routes_config(api);
-	start_servers();
-
+	//start_servers();
+	config.mongo_config(api);
+	
 };
 
 /**
@@ -90,3 +88,5 @@ function setup_servers() {
 function routes_config(app) {
 	app.post('/get_block', routes.get_block);
 };
+
+

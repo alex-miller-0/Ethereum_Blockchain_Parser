@@ -1,4 +1,5 @@
-var config = require('./config.js'),
+var assrt = require('assert'),
+    config = require('./config.js'),
 	rpc = require('node-json-rpc');
 /**
  * Routes to interact with geth
@@ -14,6 +15,7 @@ exports.rpc_call = rpc_call;
  * @param  {Function} cb - callback function
  */
 function rpc_call(method, params, cb){
+    console.log("config: ", config)
 	var options = {
     	port: config.node.geth_port,
     	host: 'localhost',
@@ -33,6 +35,18 @@ function rpc_call(method, params, cb){
 			else { cb(null, data); };
 		}
 	);
+};
+
+/**
+ * Write a transaction to mongo
+ * @param  {object}   data - the block payload recieved from geth
+ * @param  {Function} cb   - callback(error, result)
+ */
+function write_txn(data, cb){
+    config.mongo_c.insertOne(data, function(err, result) {
+        if (err) { cb(err); }
+        else { cb(null, result); };
+    });
 };
 
 
@@ -88,6 +102,11 @@ function get_block(req, res){
 
 	rpc_call(method, params, function (err, data){
 		if (err) { res.send(500, {error: err}); }
-		else { res.send(200, {data: data} )};
+		else { 
+            write_txn(data, function (err, result){
+                if (err) { res.send(500, {error: err}); }
+                else { res.send(200, {result: result} ); };
+            });     
+        };
 	});
 };
