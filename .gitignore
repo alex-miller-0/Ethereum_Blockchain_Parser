@@ -1,3 +1,5 @@
 crawler/node/node_modules/
 crawler/mongo/data/*
 crawler/logs/*
+*.pyc
+
