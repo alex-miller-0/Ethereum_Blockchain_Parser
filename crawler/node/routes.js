@@ -37,17 +37,8 @@ function rpc_call(method, params, cb){
 	);
 };
 
-/**
- * Write a transaction to mongo
- * @param  {object}   data - the block payload recieved from geth
- * @param  {Function} cb   - callback(error, result)
- */
-function write_txn(data, cb){
-    config.mongo_c.insertOne(data, function(err, result) {
-        if (err) { cb(err); }
-        else { cb(null, result); };
-    });
-};
+
+
 
 
 /**
@@ -96,17 +87,28 @@ function write_txn(data, cb){
     	}
   	}
  */
-function get_block(req, res){
+function get_block (req, res){
 	var method = "eth_getBlockByNumber";
 	var params = [req.body.block_num, true];
 
 	rpc_call(method, params, function (err, data){
 		if (err) { res.send(500, {error: err}); }
-		else { 
-            write_txn(data, function (err, result){
-                if (err) { res.send(500, {error: err}); }
-                else { res.send(200, {result: result} ); };
-            });     
-        };
+		else { res.send(200, {result: data}) };
 	});
 };
+
+
+
+/**
+ * Get the latest block in the network. Response is of the form:
+ *  returns a string of hex with the highest block number
+ */
+function latest_block (req, res){
+    var method = "eth_syncing";
+    var params = [];
+
+    rpc_call(method, params, function (err, data){
+        if (err) { res.send(500, {error: err}); }
+        else { res.send(200, {result: data.result.highestBlock}) };
+    });)
+}

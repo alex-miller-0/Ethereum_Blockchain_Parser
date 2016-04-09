@@ -87,6 +87,7 @@ function setup_servers() {
  */
 function routes_config(app) {
 	app.post('/get_block', routes.get_block);
+	app.get('/latest_block', routes.latest_block);
 };
 
 
