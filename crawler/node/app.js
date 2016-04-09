@@ -74,8 +74,7 @@ function setup_servers() {
 	basic_config();
 	api.use(auth_config);
 	routes_config(api);
-	//start_servers();
-	config.mongo_config(api);
+	api.listen(config.node.port);
 	
 };
 

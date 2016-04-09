@@ -6,6 +6,7 @@ var assrt = require('assert'),
  */
 
 exports.get_block = get_block;
+exports.latest_block = latest_block;
 exports.rpc_call = rpc_call;
 
 /**
@@ -110,5 +111,5 @@ function latest_block (req, res){
     rpc_call(method, params, function (err, data){
         if (err) { res.send(500, {error: err}); }
         else { res.send(200, {result: data.result.highestBlock}) };
-    });)
-}
+    });
+};

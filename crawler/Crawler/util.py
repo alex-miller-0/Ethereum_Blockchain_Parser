@@ -45,31 +45,35 @@
 #    	}
 #  	}
 def decodeBlock(block):
-	b = block["result"]
+	try:
+		b = block["result"]
 
-	# Filter the block
-	new_block = {
-		"number": int(b["number"], 16),
-		"miner": b["miner"],
-		"difficulty": int(b["difficulty"], 16),
-		"totalDifficulty": int(b["totalDifficulty"], 16),
-		"size": int(b["size"], 16),
-		"gasLimit": int(b["gasLimit"], 16),
-		"gasUsed": int(b["gasUsed"], 16),
-		"timestamp": int(b["timestamp"], 16),		# Timestamp is in unix time
-		"transactions": [],
-		"uncles": b["uncles"]
-	}
-
-	#	Filter and decode each transaction and add it back
-	for t in b["transactions"]:
-		new_t = {
-			"from": t["from"],
-			"to": t["to"],
-			"value": int(t["value"], 16),
-			"gas": int(t["gas"], 16),
-			"gasPrice": int(t["gasPrice"], 16)
+		# Filter the block
+		new_block = {
+			"number": int(b["number"], 16),
+			"miner": b["miner"],
+			"difficulty": int(b["difficulty"], 16),
+			"totalDifficulty": int(b["totalDifficulty"], 16),
+			"size": int(b["size"], 16),
+			"gasLimit": int(b["gasLimit"], 16),
+			"gasUsed": int(b["gasUsed"], 16),
+			"timestamp": int(b["timestamp"], 16),		# Timestamp is in unix time
+			"transactions": [],
+			"uncles": b["uncles"]
 		}
-		b["transactions"].push(new_t)
 
-	return new_block
+		#	Filter and decode each transaction and add it back
+		for t in b["transactions"]:
+			new_t = {
+				"from": t["from"],
+				"to": t["to"],
+				"value": int(t["value"], 16),
+				"gas": int(t["gas"], 16),
+				"gasPrice": int(t["gasPrice"], 16)
+			}
+			new_block["transactions"].append(new_t)
+
+		return new_block
+	
+	except:
+		return None

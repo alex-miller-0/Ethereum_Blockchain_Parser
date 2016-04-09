@@ -12,10 +12,18 @@
 #		
 #	
 from Crawler import Crawler
+import subprocess
+import time
 
 def main():
+	# Spin up necessary processes
+	subprocess.call(["scripts/boot_crawler.sh"])
+	
+	# Initialize the crawler and sync up the blockchain
 	c = Crawler.Crawler()
-	c.getBlock(10000)
+
+	# Kill processes
+	subprocess.call(["scripts/kill_crawler.sh"])
 
 if __name__ == "__main__":
 	main()
