@@ -1,13 +1,12 @@
 #!/bin/sh
 
+# DO NOT run this script from its current directory. It is meant to be called from crawl.py in the parent directory.
+LOG="scripts/logs/kill.log"
+
 # Kill the daemons that were booted
-echo "Killing geth..."
-pkill geth > logs/kill.txt 2>&1
-echo "Killing mongo..."
-pkill mongo > logs/kill.txt 2>&1
-echo "Killing node..."
-pkill node > logs/kill.txt 2>&1
-echo "Kill success!\n"
+pkill geth > ${LOG} 2>&1
+pkill mongo > ${LOG} 2>&1
+pkill node > ${LOG} 2>&1
 
 
 

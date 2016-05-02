@@ -1,6 +1,8 @@
 #	A client to interact with node and to save data to mongo
 import requests, json
 from pymongo import MongoClient
+import logging
+logging.basicConfig(filename='crawler.log',level=logging.DEBUG)
 
 import sys, os
 sys.path.append( os.path.realpath("%s"%os.path.dirname(__file__)) )
@@ -12,6 +14,7 @@ from collections import deque
 
 class Crawler(object):
 	def __init__(self):
+		logging.debug("Starting Crawler")
 		self.node_host = "http://localhost:2000/"
 		self.node_headers = {"content-type": "application/json"}
 		self.mongo_client = mongo_util.initMongo(MongoClient())				# Initializes to default host/port = localhost/27017
@@ -20,7 +23,7 @@ class Crawler(object):
 		self.insertion_errors = 0 											# Record errors for inserting block data into mongo
 		self.block_queue = mongo_util.makeBlockQueue(self.mongo_client)		# Make a stack of block numbers that are in mongo
 		self.run()
-		
+
 
 	#	Get a specific block from the blockchain and filter the data we want from it
 	def getBlock(self, n):
@@ -28,6 +31,8 @@ class Crawler(object):
 		body = {"block_num": n}
 		r = requests.post(url, data=json.dumps(body), headers=self.node_headers)
 		data = json.loads(r.text)
+		if "result" not in data:
+			logging.warn("ERROR in response getBlock: %s"%str(data))
 		assert "result" in data, "Block %s not correctly requested!"%n
 		block = decodeBlock(data["result"])
 		return block
@@ -35,28 +40,33 @@ class Crawler(object):
 	# Find the highest numbered block in the current blockchain
 	def highestBlockEth(self):
 		url = self.node_host + "latest_block"
+		logging.debug("Requesting highest block from geth via node server.")
 		r = requests.get(url, headers=self.node_headers)
 		data = json.loads(r.text)
-		assert "result" in data, "Error in highestBlock: Could not communicate with node server"
-		return int(data["result"], 16)
+		logging.debug("Highest block return from node: %s"%str(data))
+		assert "result" in data, "Error in highestBlockEth: Could not communicate with node server"
+		int_blockNo = int(data["result"], 16)
+		logging.info("Highest block found in geth: %s"%int_blockNo)
+		return int_blockNo
 
 	# Insert a given (parsed) block into mongo
 	def saveBlock(self, block):
 		e = mongo_util.insertMongo(self.mongo_client, block)
-		self.insertion_errors += e 
+		self.insertion_errors += e
 
 	# Find the highest numbered block in the mongo database
 	def highestBlockMongo(self):
 		highest_block = mongo_util.highestBlock(self.mongo_client)
+		logging.info("Highest block found in mongodb: %s"%highest_block)
 		return highest_block
 
 
 	# Query the blockchain and fill up the mongo db with blocks
 	def run(self):
-		assert self.max_block_geth > self.max_block_mongo, "Mongo Blockchain up to date!"
-		print("Processing geth blockchain:")
-		print("Number of items in mongo: %s"%(len(self.block_queue)))
-		
+		logging.debug("Processing geth blockchain:")
+		logging.info("Highest block found as: %s"%str(self.max_block_geth))
+		logging.info("Number of blocks to process: %s"%(len(self.block_queue)))
+
 		def add_block(n):
 			b = self.getBlock(n)
 			if b:
@@ -65,7 +75,7 @@ class Crawler(object):
 
 
 		# Make sure the database isn't missing any blocks up to this point
-		print("Verifying that mongo isn't missing any blocks...")
+		logging.debug("Verifying that mongo isn't missing any blocks...")
 		self.max_block_mongo = 1
 		test = list()
 		if len(self.block_queue) > 0:
@@ -83,7 +93,7 @@ class Crawler(object):
 					if n != _n:
 						add_block(n)
 						self.block_queue.appendleft(_n)
-		
+
 		#	Get all new blocks
 		print("Processing remainder of the blockchain...")
 		for n in tqdm(range(self.max_block_mongo, self.max_block_geth)):

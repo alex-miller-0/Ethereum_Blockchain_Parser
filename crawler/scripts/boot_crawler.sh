@@ -1,13 +1,11 @@
 #!/bin/sh
 
+# DO NOT run this script from its current directory. This script is meant to be called by crawl.py in the parent directory.
+LOG="scripts/logs/boot.log"
 
 # Boot geth, the node server, and mongo
-echo "Booting geth..."
-(geth --rpc --rpcport 8545 > ./logs/boot.txt 2>&1) &
-echo "Booting mongo..."
-(mongod --dbpath mongo/data --port 27017 > ./logs/boot.txt 2>&1) &
-echo "Booting node..."
-(node node/app.js > ./logs/boot.txt 2>&1) &
-echo "Boot success!\n"
+(geth --rpc --rpcport 8545 > ${LOG} 2>&1) &
+(mongod --dbpath mongo/data --port 27017 > ${LOG} 2>&1) &
+(node node/app.js > ${LOG} 2>&1) &
 
 

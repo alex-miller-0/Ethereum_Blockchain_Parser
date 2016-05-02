@@ -105,11 +105,11 @@ function get_block (req, res){
  *  returns a string of hex with the highest block number
  */
 function latest_block (req, res){
-    var method = "eth_syncing";
+    var method = "eth_blockNumber";
     var params = [];
 
     rpc_call(method, params, function (err, data){
         if (err) { res.send(500, {error: err}); }
-        else { res.send(200, {result: data.result.highestBlock}) };
+        else { res.send(200, {result: data.result}) };
     });
 };

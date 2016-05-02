@@ -2,4 +2,5 @@ crawler/node/node_modules/
 crawler/mongo/data/
 crawler/scripts/logs/
 *.pyc
-
+*.log
+.gitignore
