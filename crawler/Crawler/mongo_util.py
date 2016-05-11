@@ -12,7 +12,7 @@ COLLECTION = "transactions"
 def initMongo(client):
 	db = client[DB_NAME]						# Connect to the "blockchain" database (or create if not exists)
 	try:										# Create the collection if not exists
-		db.create_collection(COLLECTION)	
+		db.create_collection(COLLECTION)
 	except Exception as e:
 		pass
 		#print("Error creating collection: %s"%str(e))
@@ -21,7 +21,7 @@ def initMongo(client):
 	except Exception as e:
 		pass
 		#print("Error creating 'number' index: %s"%str(e))
-	
+
 	return db[COLLECTION]
 
 
@@ -29,13 +29,13 @@ def initMongo(client):
 def insertMongo(client, d):
 	try:
 		result = client.insert_one(d)
-		return 0
-	except:
-		return 1
+		return None
+	except Exception as err:
+		return err
 
 
 
-#	Get the highest numbered block 
+#	Get the highest numbered block
 #	Returns an integer
 def highestBlock(client):
 	n = client.find_one(sort=[("number", pymongo.DESCENDING)])
@@ -53,4 +53,3 @@ def makeBlockQueue(client):
 	for i in all_n:
 		queue.append(i["number"])
 	return queue
-	

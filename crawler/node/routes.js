@@ -16,14 +16,15 @@ exports.rpc_call = rpc_call;
  * @param  {Function} cb - callback function
  */
 function rpc_call(method, params, cb){
-    console.log("config: ", config)
 	var options = {
     	port: config.node.geth_port,
     	host: 'localhost',
 	};
 
 	var client = new rpc.Client(options);
-
+  console.log("client: ", client)
+  console.log("method: ", method)
+  console.log("params: ", params)
 	client.call(
 		{
 			"jsonrpc": "2.0",

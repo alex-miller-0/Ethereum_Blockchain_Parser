@@ -1,9 +1,8 @@
 #	Util functions for interacting with geth
-#	
-#	
-
-#	Decode various pieces of information (from hex) for a block and return the parsed data. 
-#	
+#
+from bson.int64 import Int64
+#	Decode various pieces of information (from hex) for a block and return the parsed data.
+#
 #	Note that the block is of the form:
 # 	{
 #       "id": 0,
@@ -47,7 +46,6 @@
 def decodeBlock(block):
 	try:
 		b = block["result"]
-
 		# Filter the block
 		new_block = {
 			"number": int(b["number"], 16),
@@ -61,19 +59,18 @@ def decodeBlock(block):
 			"transactions": [],
 			"uncles": b["uncles"]
 		}
-
 		#	Filter and decode each transaction and add it back
+		# 	Value, gas, and gasPrice are all converted to ether
 		for t in b["transactions"]:
 			new_t = {
 				"from": t["from"],
 				"to": t["to"],
-				"value": int(t["value"], 16),
-				"gas": int(t["gas"], 16),
-				"gasPrice": int(t["gasPrice"], 16)
+				"value": float(int(t["value"], 16))/1000000000000000000,
+				"gas": float(int(t["gas"], 16))/1000000000000000000,
+				"gasPrice": float(int(t["gasPrice"], 16))/1000000000000000000
 			}
 			new_block["transactions"].append(new_t)
-
 		return new_block
-	
+
 	except:
 		return None

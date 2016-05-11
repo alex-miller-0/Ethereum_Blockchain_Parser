@@ -17,10 +17,10 @@ import time
 
 def main():
 	# Spin up necessary processes
-	subprocess.call(["scripts/boot_crawler.sh"])
-
+	#subprocess.call(["scripts/boot_crawler.sh"])
 	time.sleep(1)
-	
+	print("Booting processes.")
+
 	# Initialize the crawler and sync up the blockchain
 	c = Crawler.Crawler()
 

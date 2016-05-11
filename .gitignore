@@ -1,6 +1,9 @@
 crawler/node/node_modules/
 crawler/mongo/data/
 crawler/scripts/logs/
+graph_visualization/pickles/
+graph_visualization/snapshots/
+graph_visualization/python-graph-tool.pub
 *.pyc
 *.log
 .gitignore
