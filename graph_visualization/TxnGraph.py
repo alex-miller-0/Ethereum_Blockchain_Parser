@@ -7,52 +7,72 @@ import pymongo
 import tqdm
 
 class TxnGraph():
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, snap=True, **kwargs):
         self.f_pickle = None
         self.f_snapshot = None
         self.start_block = args[0]
         self.end_block = args[1]
-        self.nodes = dict()     # A lookup table mapping ethereum address --> graph node
+        self.nodes = dict()         # A lookup table mapping ethereum address --> graph node
         self.edges = list()
-        self.graph = None
-        self.popularity = list() # A list of {address: {in_degree: <int>, out_degree: <int>}} sorted by in_degree + out_degree
-        self.init()
+        self.graph = None           # A graph_tool Graph object
+        self.edgeWeights = None     # This will be a PropertyMap of edges weighted by eth value of transaction
+        self.init(snap)
 
     # Initialization script
-    def init(self):
+    def init(self, snap):
         self.f_pickle = "pickles/%s_%s.p"%(self.start_block, self.end_block)
         self.f_snapshot = "snapshots/%s_%s.png"%(self.start_block, self.end_block)
+        if snap:
+            self.snap()
 
     # Draw the graph
     def draw(self, **kwargs):
-        w = kwargs["w"] if "w" in kwargs else 5000
-        h = kwargs["h"] if "h" in kwargs else 5000
-        graph_draw(self.graph, output_size=(w, h), output=self.f_snapshot, bg_color=[1,1,1,1])
+        w = kwargs["w"] if "w" in kwargs else 1920*2
+        h = kwargs["h"] if "h" in kwargs else 1080*2
 
-    # Define what "popularity" means
-    def getPopularity(self, in_deg, out_deg):
-        return in_deg + out_deg
+        # We want the vertices to be sized proportional to the number of transactions they are part of
+        deg = self.graph.degree_property_map("total")
+
+        # For some reason this works (TODO figure out how to scale this consistently)
+        deg.a = deg.a**0.5
+
+        # We want the largest node to be roughly 10% of the width of the image (somewhat arbitrary)
+        scale = (0.1*w)/max(deg.a)
+        deg.a = deg.a*scale
 
 
-    # Create a popularity table. This will map an address to its popularity
-    def buildPopularity(self):
-        tmp_pop = list()
-        for k, v in self.nodes.items():
-            # The temporary tuple
-            tmp = (k, {"in_deg": v.in_degree(), "out_deg": v.out_degree(), "popularity": 0})
-            tmp[1]["popularity"] = self.getPopularity(tmp[1]["in_deg"], tmp[1]["out_deg"])
+        # For some reason this doesn't work
+        #deg.a = deg.a*scale # For some reason this blows up the output
 
-            # Add the tuple to the ordered list
-            tmp_pop.append(tmp)
+        # Set K=scale because we want the average edge length to be the size of the largest node
+        pos = sfdp_layout(self.graph, p=2, C=5, K=5*scale)#, eweight=a.edgeWeights, vweight=deg, C=10.)
 
-        # Sort the popularity list and add it to the object instance
-        self.popularity = sorted(tmp_pop, key=lambda t: t[1]["popularity"])
-
+        # Draw the graph
+        graph_draw(self.graph,
+            pos=pos,
+            vertex_size=deg,
+            vertex_fill_color=deg,
+            #edge_pen_width=scaledEdgeWeights,
+            #edge_control_points=control, # some curvy edges
+            bg_color=[1,1,1,1],
+            output=self.f_snapshot,
+            output_size=(w,h),
+            fit_view=True
+        )
+        #graphviz_draw(self.graph,
+        #    pos=pos,
+        #    vsize=deg,
+        #    vcolor=deg,
+        #    output=self.f_snapshot,
+        #    size=(w, h),
+        #    overlap=False
+        #)
 
     # Take a snapshot of the graph of transactions
     def snap(self):
         # Make a new graph
-        self.Graph = Graph()
+        self.graph = Graph()
+        self.edgeWeights = self.graph.new_edge_property("double")
 
         client = pymongo.MongoClient()["blockchain"]["transactions"]
         # Get a cursor containing all of the blocks between the start/end blocks
@@ -65,6 +85,10 @@ class TxnGraph():
                     # Graph vetices will be referenced temporarily, but the unique
                     #   addresses will persist in self.nodes
                     to_v = None; from_v = None
+
+                    # Exclude self referencing transactions
+                    if txn["to"] == txn["from"]:
+                        continue
 
                     # Set the "to" vertex
                     if txn["to"] not in self.nodes:
@@ -81,10 +105,12 @@ class TxnGraph():
                         from_v = self.nodes[txn["from"]]
 
                     # Add a directed edge
-                    self.edges.append(self.graph.add_edge(from_v, to_v))
+                    newEdge = self.graph.add_edge(from_v, to_v)
+                    self.edges.append(newEdge)
+                    self.edgeWeights[newEdge] = txn["value"]
+
 
         self.draw()
-        self.buildPopularity()
         client.kill
 
     # Save a pickle of this object
