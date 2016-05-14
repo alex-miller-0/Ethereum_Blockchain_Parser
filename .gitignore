@@ -1,6 +1,6 @@
-crawler/node/node_modules/
-crawler/mongo/data/
-crawler/scripts/logs/
+chain_processing/node/node_modules/
+chain_processing/mongo/data/
+chain_processing/scripts/logs/
 graph_visualization/pickles/
 graph_visualization/snapshots/
 graph_visualization/python-graph-tool.pub
