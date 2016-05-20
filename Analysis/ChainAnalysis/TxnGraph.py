@@ -8,10 +8,10 @@ from graph_tool.all import *
 import pymongo
 import os, subprocess, signal
 import copy
-from .blacklist import blacklist
+from .tags import tags
 DIR = "data"
 
-class TxnGraph():
+class TxnGraph(object):
     '''
     Create a graph out of transactions stored in a mongo collection.
     Images can be drawn with draw().
@@ -40,11 +40,25 @@ class TxnGraph():
 
         g.draw()
     '''
-    def __init__(self, *args, snap=True, save=True, load=False, previous=None, **kwargs):
+
+    # PRIVATE
+
+    def __init__(self,
+                *args,
+                snap=True,
+                save=True,
+                load=False,
+                previous=None,
+                **kwargs):
+
         self.f_pickle = None
         self.f_snapshot = None
         self.start_block = args[0] if len(args) > 0 else 0
         self.end_block = args[1] if len(args) > 1 else 1
+
+        self.start_timestamp = None
+        self.end_timestamp = None
+
         # A lookup table mapping ethereum address --> graph node
         self.nodes = dict()
         self.edges = list()
@@ -63,15 +77,9 @@ class TxnGraph():
         self.contracts = list()
 
 
-        self.init(snap, save, load, previous)
+        self._init(snap, save, load, previous)
 
-    def init(self, snap, save, load, previous):
-        '''
-        INPUT: snap <bool>, load <bool>
-        OUTPUT: None
-
-        Initialization script
-        '''
+    def _init(self, snap, save, load, previous):
         self.graph = Graph()
 
         # Accept a previous graph as an argument
@@ -108,11 +116,7 @@ class TxnGraph():
         if save:
             self.save()
 
-    def getMongoClient(self):
-        '''
-        Attempt to get a mongo client.
-        If one can't be found, assume the daemon is not running and boot it up.
-        '''
+    def _getMongoClient(self):
         try:
             # Try a connection to mongo and force a findOne request.
             # See if it makes it through.
@@ -132,6 +136,16 @@ class TxnGraph():
         return transactions, popen
 
 
+    def _updateTimestamps(self, client):
+        start = client.find_one({"number": self.start_block})
+        end = client.find_one({"number": self.end_block})
+        self.start_timestamp = start["timestamp"]
+        self.end_timestamp = end["timestamp"]
+        return client
+
+
+    # PUBLIC
+
     def snap(self):
         '''
         INPUT: None
@@ -144,7 +158,10 @@ class TxnGraph():
         '''
 
         # Set up the mongo client
-        client, popen = self.getMongoClient()
+        client, popen = self._getMongoClient()
+
+        # Update timestamps
+        client = self._updateTimestamps(client)
 
         # Add PropertyMaps
         self.edgeWeights = self.graph.new_edge_property("double")
@@ -223,7 +240,6 @@ class TxnGraph():
         # Dont save empty graphs
         if len(self.nodes) == 0:
             return
-        print("copying")
         # We cannot save any of the graph_tool objects so we need to stash
         # them in a temporary object
         tmp = {
@@ -233,13 +249,12 @@ class TxnGraph():
             "vertexWeights": self.vertexWeights,
             "graph": self.graph
         }
-        print("copied")
         # Empty the graph_tool objects
         self.nodes = dict()
         self.edges = list()
         self.edgeWeights = None
         self.vertexWeights = None
-        print("hello")
+
         # Save the graph to a file
         self.graph.save(self.f_graph, fmt="gt")
         self.graph = None
@@ -255,7 +270,6 @@ class TxnGraph():
         self.edgeWeights = tmp["edgeWeights"]
         self.vertexWeights = tmp["vertexWeights"]
         self.graph = tmp["graph"]
-        print(self.graph)
 
     def load(self, start_block, end_block):
         '''

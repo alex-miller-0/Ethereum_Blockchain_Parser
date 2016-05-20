@@ -4,7 +4,7 @@ from collections import defaultdict
 # Exchange wallets = 1
 # Crowdsale wallets = 2
 # Mining pools = 3
-blacklist = defaultdict(int, {
+tags = defaultdict(int, {
     "0x32be343b94f860124dc4fee278fdcbd38c102d88": 1, # Polo hot wallet
     "0xb794f5ea0ba39494ce839613fffba74279579268": 1, # Polo cold wallet
     "0x2910543af39aba0cd09dbb2d50200b3e800a63d2": 1, # Kraken
