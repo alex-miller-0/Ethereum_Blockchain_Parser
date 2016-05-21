@@ -1,9 +1,6 @@
 # eth-blockchain-data
-#### An exploration of the Ethereum blockchain!
 
-## Background
-
-This is a little project to explore the network of ethereum transactions. The goal is to process a copy of the Ethereum blockchain. 
+This is a little project to explore the network of ethereum transactions. The goal is to process a copy of the Ethereum blockchain and run network analysis on it.
 
 ## Prerequisites:
 
