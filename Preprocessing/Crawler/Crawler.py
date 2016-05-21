@@ -55,11 +55,17 @@ class Crawler(object):
 		self.url = "%s:%s"%(host, rpc_port)
 		self.headers = {"content-type": "application/json"}
 
-		self.mongo_client = mongo_util.initMongo(MongoClient())				# Initializes to default host/port = localhost/27017
-		self.max_block_mongo = self.highestBlockMongo()						# The max block number that is in mongo
-		self.max_block_geth = self.highestBlockEth()						# The max block number in the public blockchain
-		self.insertion_errors = list()										# Record errors for inserting block data into mongo
-		self.block_queue = mongo_util.makeBlockQueue(self.mongo_client)		# Make a stack of block numbers that are in mongo
+		# Initializes to default host/port = localhost/27017
+		self.mongo_client = mongo_util.initMongo(MongoClient())
+		# The max block number that is in mongo
+		self.max_block_mongo = self.highestBlockMongo()
+		# The max block number in the public blockchain
+		self.max_block_geth = self.highestBlockEth()
+		# Record errors for inserting block data into mongo
+		self.insertion_errors = list()
+		# Make a stack of block numbers that are in mongo
+		self.block_queue = mongo_util.makeBlockQueue(self.mongo_client)
+
 		if start:
 			self.run()
 
@@ -143,13 +149,16 @@ class Crawler(object):
 			self.max_block_mongo = self.block_queue.pop()
 			for n in tqdm(range(1, self.max_block_mongo)):
 				if len(self.block_queue) == 0:
-					# If we have reached the max index of the queue, break the loop
+					# If we have reached the max index of the queue,
+					#	break the loop
 					break
 				else:
-					# 	-- If a block with number = current index is not in the queue, add it to mongo.
-					#	-- If the lowest block number in the queue (_n) is not the current running index (n),
-					#		then _n > n and we must add block n to mongo. After doing so, we will add _n back
-					#		to the queue.
+					# 	-- If a block with number = current index is not in
+					#		the queue, add it to mongo.
+					#	-- If the lowest block number in the queue (_n) is
+					#		not the current running index (n), then _n > n
+					#		and we must add block n to mongo. After doing so,
+					#		we will add _n back to the queue.
 					_n = self.block_queue.popleft()
 					if n != _n:
 						self.add_block(n)
