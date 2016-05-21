@@ -1,13 +1,11 @@
 #	A client to interact with node and to save data to mongo
 import requests, json
 from pymongo import MongoClient
-import sys, os
+import sys, os, logging, time
 sys.path.append( os.path.realpath("%s"%os.path.dirname(__file__)) )
-import logging
 from util import decodeBlock
 import mongo_util
 from tqdm import *
-import time
 from collections import deque
 
 def refresh_logger(filename):
@@ -21,10 +19,42 @@ logging.getLogger("urllib3").setLevel(logging.WARNING)
 
 
 class Crawler(object):
-	def __init__(self, start=True):
+	'''
+	A client to retrieve the blockchain as served from geth RPC and process it
+	to save in mongodb
+
+	Before starting, make sure geth is running in RPC (port 8545 by default).
+
+	Initializing a Crawler object will automatically scan the blockchain from
+	the last block saved in mongo to the most recent block in geth.
+
+	Options:
+	- rpc_port: int, default 8545 (the geth port)
+	- host: string, default "http://localhost" (the geth host)
+
+
+	Usage:
+
+	# Default behavior
+	crawler = Crawler()
+
+	# Interactive mode
+	crawler = Crawler(start=False)
+
+	# Get the data from a particular block (block_number is an int)
+	block = crawler.getBlock(block_number)
+
+	# Save the block to mongo. This will fail if the block already exists.
+	crawler.saveBlock(block)
+
+
+	'''
+
+	def __init__(self, start=True, rpc_port=8545, host="http://localhost"):
 		logging.debug("Starting Crawler")
-		self.node_host = "http://localhost:2000/"
-		self.node_headers = {"content-type": "application/json"}
+		self.url = "%s:%s"%(host, rpc_port)
+		self.headers = {"content-type": "application/json"}
+
 		self.mongo_client = mongo_util.initMongo(MongoClient())				# Initializes to default host/port = localhost/27017
 		self.max_block_mongo = self.highestBlockMongo()						# The max block number that is in mongo
 		self.max_block_geth = self.highestBlockEth()						# The max block number in the public blockchain
@@ -34,47 +64,61 @@ class Crawler(object):
 			self.run()
 
 
-	#	Get a specific block from the blockchain and filter the data we want from it
+	def _rpcRequest(self, method, params, key):
+		'''
+		Make an RPC request to geth on port 8545
+		'''
+		payload = {
+			"method": method,
+			"params": params,
+			"jsonrpc": "2.0",
+			"id": 0
+		}
+		time.sleep(0.005)
+		res = requests.post(self.url,
+			data=json.dumps(payload),
+			headers=self.headers).json()
+		return res[key]
+
+
 	def getBlock(self, n):
-		url = self.node_host + "get_block"
-		body = {"block_num": n}
-		r = requests.post(url, data=json.dumps(body), headers=self.node_headers)
-		data = json.loads(r.text)
-		if "result" not in data:
-			logging.warn("ERROR in response getBlock: %s"%str(data))
-		if data["result"] == None:
-			logging.warn("Null block number %s"%n)
-		assert "result" in data, "Block %s not correctly requested!"%n
-		block = decodeBlock(data["result"])
+		'''
+		Get a specific block from the blockchain and filter the data
+		'''
+		data = self._rpcRequest("eth_getBlockByNumber", [n, True], "result")
+		block = decodeBlock(data)
 		return block
 
-	# Find the highest numbered block in the current blockchain
-	def highestBlockEth(self):
-		url = self.node_host + "latest_block"
-		logging.debug("Requesting highest block from geth via node server.")
-		r = requests.get(url, headers=self.node_headers)
-		data = json.loads(r.text)
-		logging.debug("Highest block return from node: %s"%str(data))
-		assert "result" in data, "Error in highestBlockEth: Could not communicate with node server"
-		int_blockNo = int(data["result"], 16)
-		logging.info("Highest block found in geth: %s"%int_blockNo)
-		return int_blockNo
 
-	# Insert a given (parsed) block into mongo
+	def highestBlockEth(self):
+		'''
+		Find the highest numbered block in the current blockchain (via geth).
+		'''
+		num_hex = self._rpcRequest("eth_blockNumber", [], "result")
+		return int(num_hex, 16)
+
+
 	def saveBlock(self, block):
+		'''
+		Insert a given parsed block into mongo
+		'''
 		e = mongo_util.insertMongo(self.mongo_client, block)
 		if e:
 			self.insertion_errors.append(e)
 
-	# Find the highest numbered block in the mongo database
 	def highestBlockMongo(self):
+		'''
+		Find the highest numbered block in the mongo database
+		'''
 		highest_block = mongo_util.highestBlock(self.mongo_client)
 		logging.info("Highest block found in mongodb: %s"%highest_block)
 		return highest_block
 
 
-	# Add a block to mongo
 	def add_block(self, n):
+		'''
+		Add a block to mongo.
+		'''
 		b = self.getBlock(n)
 		if b:
 			self.saveBlock(b)
@@ -82,8 +126,10 @@ class Crawler(object):
 		else:
 			self.saveBlock({"number": n, "transactions": []})
 
-	# Query the blockchain and fill up the mongo db with blocks
 	def run(self):
+		'''
+		Go through the blockchain on geth and fill up mongodb with block data.
+		'''
 		logging.debug("Processing geth blockchain:")
 		logging.info("Highest block found as: %s"%str(self.max_block_geth))
 		logging.info("Number of blocks to process: %s"%(len(self.block_queue)))
