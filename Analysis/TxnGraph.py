@@ -145,9 +145,38 @@ class TxnGraph(object):
         return client
 
 
+    def _addEdgeWeight(self, newEdge, value):
+        '''
+        Add to the weight of a given edge (i.e. the amount of ether that has
+        flown through it). Create a new one if needed.
+        '''
+        if self.edgeWeights[newEdge] is not None:
+            self.edgeWeights[newEdge] += value
+        else:
+            self.edgeWeights[newEdge] = 0
+
+
+    def _addVertexWeight(self, from_v, to_v, value):
+        '''
+        Add to the weight of a given vertex (i.e. the amount of ether)
+        it holds. Create a new weight if needed.
+        '''
+        if self.vertexWeights[to_v] is not None:
+            self.vertexWeights[to_v] += value
+        else:
+            self.vertexWeights[to_v] = 0
+        if self.vertexWeights[from_v] is not None:
+            # We shouldn't need to worry about overspending
+            # as the ethereum protocol should not let you spend
+            # more ether than you have!
+            self.vertexWeights[from_v] -= value
+        else:
+            self.vertexWeights[from_v] = 0
+
+
     # PUBLIC
 
-    def snap(self):
+    def snap(self, load=False):
         '''
         INPUT: None
         OUTPUT: None
@@ -178,6 +207,7 @@ class TxnGraph(object):
                 # Loop through all of the transactions in the current block
                 # Add all the nodes to a global set (self.nodes)
                 for txn in block["transactions"]:
+
                     # Graph vetices will be referenced temporarily, but the
                     #   unique addresses will persist in self.nodes
                     to_v = None; from_v = None
@@ -207,23 +237,14 @@ class TxnGraph(object):
                     newEdge = self.graph.add_edge(from_v, to_v)
                     self.edges.append(newEdge)
 
-                    # Update edgeWeights
-                    if self.edgeWeights[newEdge] is not None:
-                        self.edgeWeights[newEdge] += txn["value"]
-                    else:
-                        self.edgeWeights[newEdge] = 0
-                    # Update vertexWeights
-                    if self.vertexWeights[to_v] is not None:
-                        self.vertexWeights[to_v] += txn["value"]
-                    else:
-                        self.vertexWeights[to_v] = 0
-                    if self.vertexWeights[from_v] is not None:
-                        # We shouldn't need to worry about overspending
-                        # as the ethereum protocol should not let you spend
-                        # more ether than you have!
-                        self.vertexWeights[from_v] -= txn["value"]
-                    else:
-                        self.vertexWeights[from_v] = 0
+                    # Update the weights
+                    self._addEdgeWeight(newEdge, txn["value"])
+                    self._addVertexWeight(from_v, to_v, txn["value"])
+
+        # Add the weights to the graph
+        self.graph.vertex_properties["weight"] = self.vertexWeights
+        self.graph.edge_properties["weight"] = self.edgeWeights
+
 
         # Kill the mongo client if it was spawned in this process
         if popen:

@@ -89,23 +89,21 @@ class ParsedBlocks(object):
             return True
         return False
 
-
-
     def _parse(self):
         '''
         Iterate through edges and vertices to calculate metrics of interest.
         '''
+        vWeights = self.txn_graph.graph.vertex_properties["weight"]
+        eWeights = self.txn_graph.graph.edge_properties["weight"]
 
         # Iterate over vertices (i.e. addresses)
         for v in self.txn_graph.graph.vertices():
             if self._isPeer(v):
-                self.peer_wealth.append(self.txn_graph.vertexWeights[v])
-
+                self.peer_wealth.append(vWeights[v])
 
         # Iterates over a bunch of Edge instances (i.e. transactions)
         for e in self.txn_graph.graph.edges():
-            amount = self.edgeWeight[e]
-
+            amount = eWeights[e]
             # The edgeWeight of this edge is the amount of the transaction
             self.transaction_count += 1
             self.transaction_sum += amount
@@ -114,7 +112,7 @@ class ParsedBlocks(object):
             if self.tags[e.source()] == 1:
                 self.exchange_out_sum += amount
                 self.exchange_out_count += 1
-            elif tags[e.target()] == 1:
+            elif self.tags[e.target()] == 1:
                 self.exchange_in_sum += amount
                 self.exchange_in_count += 1
 
@@ -130,5 +128,5 @@ class ParsedBlocks(object):
 
             # If source and target are both peer nodes
             if self._isPeer(e.target()) and self._isPeer(e.source()):
-                self.all_peer_txn_sum += amount
-                self.all_peer_txn_count += 1
+                self.p2p_txn_sum += amount
+                self.p2p_txn_count += 1
