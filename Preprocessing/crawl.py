@@ -1,10 +1,9 @@
 # 	A client to crawl the ethereum blockchain
 #
-# 	Requires three processes to be running:
+# 	Requires two processes to be running:
 #
-#	1: geth 	(to access the blockchain data)
+#	1: geth 	(with RPC enabled, to access the blockchain data)
 #	2: mongodb	(to store processed blockchain data)
-#	3: node		(to interact with geth via web3.js and RPC)
 #
 #	Boot these processes by calling
 #		./boot_crawler.sh

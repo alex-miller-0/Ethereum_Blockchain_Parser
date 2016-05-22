@@ -36,7 +36,12 @@ class ContractMap(object):
 
 
     '''
-    def __init__(self, mongo_client=None, last_block=0, filepath="./.contracts.p"):
+    def __init__(self,
+                mongo_client=None,
+                last_block=0,
+                load=False,
+                filepath="./.contracts.p"):
+
         self.client = mongo_client
         self.last_block = last_block
         self.url = "http://localhost:8545"
@@ -44,6 +49,9 @@ class ContractMap(object):
         self.filepath = filepath
 
         self.addresses = defaultdict(int)
+
+        if load:
+            self.load()
 
         if self.client:
             self.find()
@@ -76,17 +84,9 @@ class ContractMap(object):
             headers=self.headers).json()
 
         # Geth will sometimes crash if overloaded with requests
-        time.sleep(0.001)
+        time.sleep(0.005)
 
         return res[key]
-
-    def _getMaxBlock(self):
-        max = self.client.find(
-            sort=[("number", pymongo.ASCENDING)],
-            limit=1
-        )
-        return max["number"]
-
 
 
     def find(self):
@@ -99,27 +99,38 @@ class ContractMap(object):
             {"number":{"$gt": self.last_block}},
             sort=[("number", pymongo.ASCENDING)]
         )
+        counter = 0
         for block in blocks:
             if block["transactions"]:
                 # Loop through all of the transactions in the current block
                 # Add all the nodes to a global set (self.nodes)
                 for txn in block["transactions"]:
-                    if txn["to"]:
+                    if txn["to"] and not self.addresses[txn["to"]]:
                         # Get the code at the address the transaction was sent to
-                        addr = self._rpcRequest(
+                        code = self._rpcRequest(
                             "eth_getCode",
                             [txn["to"], "latest"],
                             "result")
                         # Add addressees if there is non-empty data
-                        if addr != "0x" and not self.addresses[txn["to"]]:
+                        if code != "0x":
                             self.addresses[txn["to"]] = 1
+
+            self.last_block = block["number"]
+            counter +=1
+            # Save the list every 10000 blocks in case geth crashes
+            # midway through the procedure
+            if not counter%10000:
+                print("Done with block %s..."%self.last_block)
+                self.save()
 
 
     def save(self):
         '''
         Pickle the object and save it to a file
         '''
-        pickle.dump(self.addresses, open( self.filepath, "wb" ))
+        state = (self.last_block, self.addresses)
+        pickle.dump(state, open( self.filepath, "wb" ))
+
 
     def load(self):
         '''
@@ -127,4 +138,6 @@ class ContractMap(object):
         '''
         no_file = "Error loading ContractMap: No file exists in that path."
         assert os.path.isfile(self.filepath), no_file
-        self.addresses = pickle.load( open( self.filepath, "rb" ) )
+        state = pickle.load( open( self.filepath, "rb" ) )
+        self.addresses = state[1]
+        self.last_block = state[0]

@@ -1,31 +1,50 @@
-from ChainAnalysis.TxnGraph import TxnGraph
-from ChainAnalysis.tags import tags
-# Parse the network graphs at each timestamp
-# Time period is every X blocks
-#
-# For each time period, look at aggregate stats
-#   Iterate over all edges in the graph snapshot and calculate:
-#
-#   - Total number of transactions in the network
-#   - Sum of all transaction amounts
-#   - Sum of all outflow from exchanges (suggests people entering long term)
-#   - Sum of all inflow to exchanges (suggests people exiting)
-#   - Number of transactions to contracts (with data)
-#   - Number of transactions to crowdsale wallets (no data)
-#   - Number of transactions to peers, but with data (i.e. sending altcoins)
-#   - Number of p2p transactions
-#   - Number of new addresses
-#   - Distribution of wealth (mean, std) across addresses that are NOT:
-#       A) Exchanges
-#       B) Mining pools
-#       C) Crowdsale wallets/contract addresses
-#
-#   Lastly, we also want to get the price of ETH (in USD) at the
-#   timestamp listed in the LAST block of the block range.
+from TxnGraph import TxnGraph
+import tags
+from ContractMap import ContractMap
+
 
 
 class ParsedBlocks(object):
+    '''
+    INPUT:
+    TxnGraph instance (with a snapshot)
+
+    DESCRIPTION:
+    Parse the network graphs at each timestamp.
+    Time period is every X blocks.
+    For each time period, look at aggregate stats.
+
+    Iterate over all edges in the graph snapshot and calculate:
+        - Total number of transactions in the network
+        - Sum of all transaction amounts
+        - Sum of all outflow from exchanges (suggests people entering long term)
+        - Sum of all inflow to exchanges (suggests people exiting)
+        - Number of transactions to contracts (with data)
+        - Number of transactions to crowdsale wallets (no data)
+        - Number of transactions to peers, but with data (i.e. sending altcoins)
+        - Number of p2p transactions
+        - Number of new addresses
+        - Distribution of wealth (mean, std) across addresses that are NOT:
+
+    Tagged addresses consitute:
+    A: Exchanges
+    B: Mining pools
+    C: Crowdsale wallets/contract addresses
+
+    Also tagged are all contract addresses to which data has been sent.
+
+    Lastly, we also want to get the price of ETH (in USD) at the
+    timestamp listed in the LAST block of the block range.
+    '''
     def __init__(self, txn_graph, run=True):
+        self.txn_graph = txn_graph
+
+        # Tagged addresses (exchanges, mining pools, contracts)
+
+        # 1: Exchanges, 2: Crowdsale contracts, 3: mining pools, 0: Other
+        self.tags = tags.tags
+        # 1: Contracts, 0: Other
+        self.contracts = ContractMap(load=True).addresses
 
         # Bookkeeping
         self.start_block = txn_graph.start_block
@@ -37,40 +56,79 @@ class ParsedBlocks(object):
         self.transaction_sum = 0
         self.transaction_count = 0
         self.exchange_out_sum = 0
+        self.exchange_out_count = 0
         self.exchange_in_sum = 0
-        # TODO also make a hash map of all contract addresses (i.e. all addresses that have )
-        # TODO can do this by calling geth rpc with e.g. curl -X POST --data '{"jsonrpc":"2.0","method":"eth_getCode","params":["0xf70d67f47444dd538ab95ddc14ab15b1908cb0d9", "latest"],"id":1}'
-        self.contract_txns_w_data = 0
-        self.crowdsale_txns_no_data = 0
-        self.all_peer_txns = 0
+        self.exchange_in_count = 0
+        self.contract_txn_sum = 0
+        self.contract_txn_count = 0
+        self.crowdsale_txn_sum = 0
+        self.crowdsale_txn_count = 0
+        self.p2p_txn_sum = 0
+        self.p2p_txn_count = 0
+
         self.peer_txns_w_data = 0
         self.new_addresses = 0
+
         # The wealth will be represented in a list and before
         #   saving to a DB, the mean/std will be calculated
-        self.wealth = list()
-        self.wealth_mean = 0
-        self.wealth_std = 0
+        self.peer_wealth = list()
+        self.peer_wealth_mean = 0
+        self.peer_wealth_std = 0
 
         if run:
-            self._run()
+            self._parse()
 
     # PRIVATE
 
-    def _run(self):
-        tags = tags
-        # Iterates over a bunch of Edge instances (i.e. transactions)
-        for e in txn_graph.graph.edges():
+    def _isPeer(self, v):
+        '''
+        Determine if a vertex corresponds to a peer address
+        (i.e. not a contract, crowdsale, exchange, mining pool)
+        '''
+        if not self.contracts[v] and not self.tags[v]:
+            return True
+        return False
 
-            amount = txn_graph.edgeWeight[e]
+
+
+    def _parse(self):
+        '''
+        Iterate through edges and vertices to calculate metrics of interest.
+        '''
+
+        # Iterate over vertices (i.e. addresses)
+        for v in self.txn_graph.graph.vertices():
+            if self._isPeer(v):
+                self.peer_wealth.append(self.txn_graph.vertexWeights[v])
+
+
+        # Iterates over a bunch of Edge instances (i.e. transactions)
+        for e in self.txn_graph.graph.edges():
+            amount = self.edgeWeight[e]
 
             # The edgeWeight of this edge is the amount of the transaction
             self.transaction_count += 1
             self.transaction_sum += amount
 
-            # If the source of the txn is an exchange...
-            if tags[e.source()] == 1:
-                exchange_out_sum += amount
+            # If the target/source of the txn is an exchange:
+            if self.tags[e.source()] == 1:
+                self.exchange_out_sum += amount
+                self.exchange_out_count += 1
             elif tags[e.target()] == 1:
-                exchange_in_sum += amount
+                self.exchange_in_sum += amount
+                self.exchange_in_count += 1
 
-            # If the
+            # If the target is a crowdsale wallet:
+            if self.tags[e.target()] == 2:
+                self.crowdsale_txn_sum += amount
+                self.crowdsale_txn_count += 1
+
+            # If the target is a contract:
+            if self.contracts[e.target()]:
+                self.contract_txn_sum += amount
+                self.contract_txn_count += 1
+
+            # If source and target are both peer nodes
+            if self._isPeer(e.target()) and self._isPeer(e.source()):
+                self.all_peer_txn_sum += amount
+                self.all_peer_txn_count += 1

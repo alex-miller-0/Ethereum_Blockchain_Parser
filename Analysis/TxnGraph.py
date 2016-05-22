@@ -8,7 +8,7 @@ from graph_tool.all import *
 import pymongo
 import os, subprocess, signal
 import copy
-from .tags import tags
+from tags import tags
 DIR = "data"
 
 class TxnGraph(object):
@@ -108,13 +108,14 @@ class TxnGraph(object):
         if load:
             self.load(self.start_block, self.end_block)
 
-        # Take a snapshot
-        if snap:
-            self.snap()
+        else:
+            # Take a snapshot
+            if snap:
+                self.snap()
 
-        # Save this graph automatically
-        if save:
-            self.save()
+            # Save this graph automatically
+            if save:
+                self.save()
 
     def _getMongoClient(self):
         try:
