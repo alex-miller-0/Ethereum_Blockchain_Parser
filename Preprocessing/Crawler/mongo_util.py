@@ -1,32 +1,48 @@
-#	Interact with mongo
+"""Utility functions to interact with mongo."""
 import pymongo
 from collections import deque
 
-#	Global vars
 DB_NAME = "blockchain"
 COLLECTION = "transactions"
 
-
-#	Initialize a mongo client and create db/collection if they do not exist
-#	Returns a collection object
 def initMongo(client):
-	db = client[DB_NAME]						# Connect to the "blockchain" database (or create if not exists)
-	try:										# Create the collection if not exists
-		db.create_collection(COLLECTION)
+    """
+	Given a mongo client instance, create db/collection if either doesn't exist
+
+	Parameters:
+	-----------
+	client <mongodb Client>
+
+	Returns:
+	--------
+	<mongodb Client>
+	"""
+    db = client[DB_NAME]
+    try:
+        db.create_collection(COLLECTION)
 	except Exception as e:
 		pass
-		#print("Error creating collection: %s"%str(e))
 	try:										# Create an index on the block number so duplicate records cannot be made
 		db[COLLECTION].create_index([("number", pymongo.DESCENDING)], unique=True)
 	except Exception as e:
 		pass
-		#print("Error creating 'number' index: %s"%str(e))
 
 	return db[COLLECTION]
 
 
-#	Insert a document into mongo
 def insertMongo(client, d):
+	"""
+	Insert a document into mongo client with collection selected.
+
+	Params:
+	-------
+	client <mongodb Client>
+	d <dict>
+
+	Returns:
+	--------
+	error <None or str>
+	"""
 	try:
 		result = client.insert_one(d)
 		return None
@@ -34,10 +50,19 @@ def insertMongo(client, d):
 		return err
 
 
-
-#	Get the highest numbered block
-#	Returns an integer
 def highestBlock(client):
+	"""
+	Get the highest numbered block in the collection.
+
+	Params:
+	-------
+	client <mongodb Client>
+
+	Returns:
+	--------
+	<int>
+	"""
+
 	n = client.find_one(sort=[("number", pymongo.DESCENDING)])
 	if not n:									# If the database is empty, the highest block # is 0
 		return 0
@@ -45,11 +70,21 @@ def highestBlock(client):
 	return n["number"]
 
 
-# Form a queue of blocks in the blockchain that are recorded in mongo
-# returns deque object
 def makeBlockQueue(client):
+	"""
+	Form a queue of blocks that are recorded in mongo.
+
+	Params:
+	-------
+	client <mongodb Client>
+
+	Returns:
+	--------
+	<deque>
+	"""
 	queue = deque()
-	all_n = client.find({}, {"number":1, "_id":0}, sort=[("number", pymongo.ASCENDING)])
+	all_n = client.find({}, {"number":1, "_id":0},
+			sort=[("number", pymongo.ASCENDING)])
 	for i in all_n:
 		queue.append(i["number"])
 	return queue
