@@ -1,15 +1,15 @@
-from TxnGraph import TxnGraph
+"""Interace to parse aggregate data from snapshots of the Ethereum network."""
+
 import tags
 from ContractMap import ContractMap
 
 
-
 class ParsedBlocks(object):
-    '''
-    INPUT:
-    TxnGraph instance (with a snapshot)
+    """
+    Build a set of aggregate data from a snapshot (using a TxnGraph).
 
-    DESCRIPTION:
+    Description:
+    ------------
     Parse the network graphs at each timestamp.
     Time period is every X blocks.
     For each time period, look at aggregate stats.
@@ -17,11 +17,11 @@ class ParsedBlocks(object):
     Iterate over all edges in the graph snapshot and calculate:
         - Total number of transactions in the network
         - Sum of all transaction amounts
-        - Sum of all outflow from exchanges (suggests people entering long term)
+        - Sum of all outflow from exchanges; suggests people entering long term
         - Sum of all inflow to exchanges (suggests people exiting)
         - Number of transactions to contracts (with data)
         - Number of transactions to crowdsale wallets (no data)
-        - Number of transactions to peers, but with data (i.e. sending altcoins)
+        - Number of transactions to peers, but with data, i.e. sending altcoins
         - Number of p2p transactions
         - Number of new addresses
         - Distribution of wealth (mean, std) across addresses that are NOT:
@@ -35,12 +35,19 @@ class ParsedBlocks(object):
 
     Lastly, we also want to get the price of ETH (in USD) at the
     timestamp listed in the LAST block of the block range.
-    '''
+
+    Parameters:
+    -----------
+    txn_graph: TxnGraph instance (with a prebuilt graph)
+    run: boolean, optional. Calculate the data when instantiated.
+
+    """
+
     def __init__(self, txn_graph, run=True):
+        """Initialize the graph, address hash maps, and data fields."""
         self.txn_graph = txn_graph
 
         # Tagged addresses (exchanges, mining pools, contracts)
-
         # 1: Exchanges, 2: Crowdsale contracts, 3: mining pools, 0: Other
         self.tags = tags.tags
         # 1: Contracts, 0: Other
@@ -81,18 +88,17 @@ class ParsedBlocks(object):
     # PRIVATE
 
     def _isPeer(self, v):
-        '''
-        Determine if a vertex corresponds to a peer address
-        (i.e. not a contract, crowdsale, exchange, mining pool)
-        '''
+        """
+        Determine if a vertex corresponds to a peer address.
+
+        This means it is not a contract, crowdsale, exchange, or mining pool.
+        """
         if not self.contracts[v] and not self.tags[v]:
             return True
         return False
 
     def _parse(self):
-        '''
-        Iterate through edges and vertices to calculate metrics of interest.
-        '''
+        """Iterate through the graph to calculate metrics of interest."""
         vWeights = self.txn_graph.graph.vertex_properties["weight"]
         eWeights = self.txn_graph.graph.edge_properties["weight"]
 

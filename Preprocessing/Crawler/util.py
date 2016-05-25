@@ -1,9 +1,9 @@
-#	Util functions for interacting with geth
+"""Util functions for interacting with geth and OS."""
+
+import os
+# Decode various pieces of information (from hex) for a block and return the parsed data.
 #
-from bson.int64 import Int64
-#	Decode various pieces of information (from hex) for a block and return the parsed data.
-#
-#	Note that the block is of the form:
+# Note that the block is of the form:
 # 	{
 #       "id": 0,
 #    	"jsonrpc": "2.0",
@@ -44,34 +44,42 @@ from bson.int64 import Int64
 #    	}
 #  	}
 def decodeBlock(block):
-	try:
-		b = block["result"]
-		# Filter the block
-		new_block = {
-			"number": int(b["number"], 16),
-			"miner": b["miner"],
-			"difficulty": int(b["difficulty"], 16),
-			"totalDifficulty": int(b["totalDifficulty"], 16),
-			"size": int(b["size"], 16),
-			"gasLimit": int(b["gasLimit"], 16),
-			"gasUsed": int(b["gasUsed"], 16),
-			"timestamp": int(b["timestamp"], 16),		# Timestamp is in unix time
-			"transactions": [],
-			"uncles": b["uncles"]
-		}
-		#	Filter and decode each transaction and add it back
-		# 	Value, gas, and gasPrice are all converted to ether
-		for t in b["transactions"]:
-			new_t = {
-				"from": t["from"],
-				"to": t["to"],
-				"value": float(int(t["value"], 16))/1000000000000000000,
-				"gas": float(int(t["gas"], 16))/1000000000000000000,
-				"gasPrice": float(int(t["gasPrice"], 16))/1000000000000000000,
-				"data": t["input"]
-			}
-			new_block["transactions"].append(new_t)
-		return new_block
+    """Decode a block (fields in hex) coming from geth via RPC"""
+    try:
+        b = block["result"]
+        # Filter the block
+        new_block = {
+            "number": int(b["number"], 16),
+            "miner": b["miner"],
+            "difficulty": int(b["difficulty"], 16),
+            "totalDifficulty": int(b["totalDifficulty"], 16),
+            "size": int(b["size"], 16),
+            "gasLimit": int(b["gasLimit"], 16),
+            "gasUsed": int(b["gasUsed"], 16),
+            "timestamp": int(b["timestamp"], 16),		# Timestamp is in unix time
+            "transactions": [],
+            "uncles": b["uncles"]
+        }
+        # Filter and decode each transaction and add it back
+        # 	Value, gas, and gasPrice are all converted to ether
+        for t in b["transactions"]:
+            new_t = {
+                "from": t["from"],
+                "to": t["to"],
+                "value": float(int(t["value"], 16))/1000000000000000000,
+                "gas": float(int(t["gas"], 16))/1000000000000000000,
+                "gasPrice": float(int(t["gasPrice"], 16))/1000000000000000000,
+                "data": t["input"]
+            }
+            new_block["transactions"].append(new_t)
+        return new_block
 
-	except:
-		return None
+    except:
+        return None
+
+
+def refresh_logger(filename):
+    """Remove old logs and create new ones."""
+    if os.path.isfile(filename):
+        os.remove(filename)
+    open(filename, 'a').close()

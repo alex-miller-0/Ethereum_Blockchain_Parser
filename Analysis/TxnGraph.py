@@ -1,45 +1,60 @@
-# This will create a snapshot of the ethereum network.
-# Each snapshot must start at some time t0 (start_block) and end at time
-#  tf (end_block). It will include all nodes that sent or received a
-#  transaction between t0 and tf.
-#import pickle
+"""Create a snapshot of the ethereum network."""
+
 import six.moves.cPickle as pickle
 from graph_tool.all import *
 import pymongo
-import os, subprocess, signal
+import os
+import subprocess
+import signal
 import copy
 from tags import tags
 DIR = "data"
 
-class TxnGraph(object):
-    '''
-    Create a graph out of transactions stored in a mongo collection.
-    Images can be drawn with draw().
-    Graphs can be saved with save() or loaded with load(start_block, end_block).
 
-    INPUT:
-        start_block <int>              # The lower bound of the block range to
-                                       # be analysed.
-        end_block <int>                # The upper range of the block range to
-                                       # be analysed.
-        previous <dict>                # Previous graph and its end_block
-        snap <bool> (default=True)     # Build the graph upon instantiation.
-        save <bool> (default=True)     # Save the graph automatically
-        load <bool> (default=False)    # Skip building the graph and load a
-                                       # different graph from disk.
-    OUTPUT:
-        None
+class TxnGraph(object):
+    """
+    Create a snapshot of the Ethereum network.
+
+    Description:
+    ------------
+    Create a snapshot, which contains a graph, out of transactions stored in a
+    mongo collection. Each snapshot must start at some time t0 (start_block)
+    and end at time tf (end_block). It will include all nodes that sent or
+    received a transaction between t0 and tf.
+
+
+    Parameters:
+    -----------
+    start_block <int>              # The lower bound of the block range to
+                                   # be analysed.
+    end_block <int>                # The upper range of the block range to
+                                   # be analysed.
+    previous <dict>                # Previous graph and its end_block
+    snap <bool> (default=True)     # Build the graph upon instantiation.
+    save <bool> (default=True)     # Save the graph automatically
+    load <bool> (default=False)    # Skip building the graph and load a
+
 
     Usage:
+    ------
     Initialize with a previous graph:
 
         g = TxnGraph(previous={graph: <Graph>, end_block: <int>})
 
-    Draw the image (saved by default to DIR/snapshots/a_b.png, where
-    a=start_block, b=end_block):
+    Draw the image (saved by default to DIR/snapshots/a_b.png,
+    where a=start_block, b=end_block):
 
         g.draw()
-    '''
+
+    Save the state of the object (including the graph):
+
+        g.save()
+
+    Load a graph with start_block=a, end_block=b from DIR if it exists:
+
+        g.load(a, b)
+
+    """
 
     # PRIVATE
 

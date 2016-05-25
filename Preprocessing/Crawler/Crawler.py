@@ -1,173 +1,161 @@
-#	A client to interact with node and to save data to mongo
-import requests, json
-from pymongo import MongoClient
-import sys, os, logging, time
-sys.path.append( os.path.realpath("%s"%os.path.dirname(__file__)) )
-from util import decodeBlock
+"""A client to interact with node and to save data to mongo."""
+
+from util import decodeBlock, refresh_logger
 import mongo_util
-from tqdm import *
-from collections import deque
+import requests
+import json
+from pymongo import MongoClient
+import sys
+import os
+import logging
+import time
+import tqdm
+sys.path.append(os.path.realpath(os.path.dirname(__file__)))
 
-def refresh_logger(filename):
-	if os.path.isfile(filename):
-		os.remove(filename)
-	open(filename, 'a').close()
-
-refresh_logger('logs/crawler.log')
-logging.basicConfig(filename='logs/crawler.log',level=logging.DEBUG)
+LOGFIL = "./../logs/crawler.log"
+refresh_logger(LOGFIL)
+logging.basicConfig(filename=LOGFIL, level=logging.DEBUG)
 logging.getLogger("urllib3").setLevel(logging.WARNING)
 
 
 class Crawler(object):
-	'''
-	A client to retrieve the blockchain as served from geth RPC and process it
-	to save in mongodb
+    """
+    A client to migrate blockchain from geth to mongo.
 
-	Before starting, make sure geth is running in RPC (port 8545 by default).
+    Description:
+    ------------
+    Before starting, make sure geth is running in RPC (port 8545 by default).
+    Initializing a Crawler object will automatically scan the blockchain from
+    the last block saved in mongo to the most recent block in geth.
 
-	Initializing a Crawler object will automatically scan the blockchain from
-	the last block saved in mongo to the most recent block in geth.
+    Parameters:
+    -----------
+    rpc_port: <int> default 8545 	# The port on which geth RPC can be called
+    host: <string> default "http://localhost" # The geth host
+    start: <bool> default True		# Create the graph upon instantiation
 
-	Options:
-	- rpc_port: int, default 8545 (the geth port)
-	- host: string, default "http://localhost" (the geth host)
+    Usage:
+    ------
+    Default behavior:
+        crawler = Crawler()
 
+    Interactive mode:
+        crawler = Crawler(start=False)
 
-	Usage:
+    Get the data from a particular block:
+        block = crawler.getBlock(block_number)
 
-	# Default behavior
-	crawler = Crawler()
+    Save the block to mongo. This will fail if the block already exists:
+        crawler.saveBlock(block)
 
-	# Interactive mode
-	crawler = Crawler(start=False)
+    """
 
-	# Get the data from a particular block (block_number is an int)
-	block = crawler.getBlock(block_number)
+    def __init__(self, start=True, rpc_port=8545, host="http://localhost"):
+        """Initialize the Crawler."""
+        logging.debug("Starting Crawler")
+        self.url = "{}:{}".format(host, rpc_port)
+        self.headers = {"content-type": "application/json"}
 
-	# Save the block to mongo. This will fail if the block already exists.
-	crawler.saveBlock(block)
+        # Initializes to default host/port = localhost/27017
+        self.mongo_client = mongo_util.initMongo(MongoClient())
+        # The max block number that is in mongo
+        self.max_block_mongo = self.highestBlockMongo()
+        # The max block number in the public blockchain
+        self.max_block_geth = self.highestBlockEth()
+        # Record errors for inserting block data into mongo
+        self.insertion_errors = list()
+        # Make a stack of block numbers that are in mongo
+        self.block_queue = mongo_util.makeBlockQueue(self.mongo_client)
 
+        if start:
+            self.run()
 
-	'''
+    def _rpcRequest(self, method, params, key):
+        """Make an RPC request to geth on port 8545."""
+        payload = {
+            "method": method,
+            "params": params,
+            "jsonrpc": "2.0",
+            "id": 0
+        }
+        time.sleep(0.005)
+        res = requests.post(
+              self.url,
+              data=json.dumps(payload),
+              headers=self.headers).json()
+        return res[key]
 
-	def __init__(self, start=True, rpc_port=8545, host="http://localhost"):
-		logging.debug("Starting Crawler")
-		self.url = "%s:%s"%(host, rpc_port)
-		self.headers = {"content-type": "application/json"}
+    def getBlock(self, n):
+        """Get a specific block from the blockchain and filter the data."""
+        data = self._rpcRequest("eth_getBlockByNumber", [n, True], "result")
+        block = decodeBlock(data)
+        return block
 
-		# Initializes to default host/port = localhost/27017
-		self.mongo_client = mongo_util.initMongo(MongoClient())
-		# The max block number that is in mongo
-		self.max_block_mongo = self.highestBlockMongo()
-		# The max block number in the public blockchain
-		self.max_block_geth = self.highestBlockEth()
-		# Record errors for inserting block data into mongo
-		self.insertion_errors = list()
-		# Make a stack of block numbers that are in mongo
-		self.block_queue = mongo_util.makeBlockQueue(self.mongo_client)
+    def highestBlockEth(self):
+        """Find the highest numbered block in geth."""
+        num_hex = self._rpcRequest("eth_blockNumber", [], "result")
+        return int(num_hex, 16)
 
-		if start:
-			self.run()
+    def saveBlock(self, block):
+        """Insert a given parsed block into mongo."""
+        e = mongo_util.insertMongo(self.mongo_client, block)
+        if e:
+            self.insertion_errors.append(e)
 
+    def highestBlockMongo(self):
+        """Find the highest numbered block in the mongo database."""
+        highest_block = mongo_util.highestBlock(self.mongo_client)
+        logging.info("Highest block found in mongodb:{}".format(highest_block))
+        return highest_block
 
-	def _rpcRequest(self, method, params, key):
-		'''
-		Make an RPC request to geth on port 8545
-		'''
-		payload = {
-			"method": method,
-			"params": params,
-			"jsonrpc": "2.0",
-			"id": 0
-		}
-		time.sleep(0.005)
-		res = requests.post(self.url,
-			data=json.dumps(payload),
-			headers=self.headers).json()
-		return res[key]
+    def add_block(self, n):
+        """Add a block to mongo."""
+        b = self.getBlock(n)
+        if b:
+            self.saveBlock(b)
+            time.sleep(0.001)
+        else:
+            self.saveBlock({"number": n, "transactions": []})
 
+    def run(self):
+        """
+        Run the process.
 
-	def getBlock(self, n):
-		'''
-		Get a specific block from the blockchain and filter the data
-		'''
-		data = self._rpcRequest("eth_getBlockByNumber", [n, True], "result")
-		block = decodeBlock(data)
-		return block
+        Iterate through the blockchain on geth and fill up mongodb
+        with block data.
+        """
+        logging.debug("Processing geth blockchain:")
+        logging.info("Highest block found as: {}".format(self.max_block_geth))
+        logging.info("Number of blocks to process: {}".format(
+            len(self.block_queue)))
 
+        # Make sure the database isn't missing any blocks up to this point
+        logging.debug("Verifying that mongo isn't missing any blocks...")
+        self.max_block_mongo = 1
+        if len(self.block_queue) > 0:
+            print("Looking for missing blocks...")
+            self.max_block_mongo = self.block_queue.pop()
+            for n in tqdm(range(1, self.max_block_mongo)):
+                if len(self.block_queue) == 0:
+                    # If we have reached the max index of the queue,
+                    # break the loop
+                    break
+                else:
+                    # -If a block with number = current index is not in
+                    # the queue, add it to mongo.
+                    # -If the lowest block number in the queue (_n) is
+                    # not the current running index (n), then _n > n
+                    # and we must add block n to mongo. After doing so,
+                    # we will add _n back to the queue.
+                    _n = self.block_queue.popleft()
+                    if n != _n:
+                        self.add_block(n)
+                        self.block_queue.appendleft(_n)
+                        logging.info("Added block {}".format(n))
 
-	def highestBlockEth(self):
-		'''
-		Find the highest numbered block in the current blockchain (via geth).
-		'''
-		num_hex = self._rpcRequest("eth_blockNumber", [], "result")
-		return int(num_hex, 16)
+        # Get all new blocks
+        print("Processing remainder of the blockchain...")
+        for n in tqdm(range(self.max_block_mongo, self.max_block_geth)):
+            self.add_block(n)
 
-
-	def saveBlock(self, block):
-		'''
-		Insert a given parsed block into mongo
-		'''
-		e = mongo_util.insertMongo(self.mongo_client, block)
-		if e:
-			self.insertion_errors.append(e)
-
-	def highestBlockMongo(self):
-		'''
-		Find the highest numbered block in the mongo database
-		'''
-		highest_block = mongo_util.highestBlock(self.mongo_client)
-		logging.info("Highest block found in mongodb: %s"%highest_block)
-		return highest_block
-
-
-	def add_block(self, n):
-		'''
-		Add a block to mongo.
-		'''
-		b = self.getBlock(n)
-		if b:
-			self.saveBlock(b)
-			time.sleep(0.001)
-		else:
-			self.saveBlock({"number": n, "transactions": []})
-
-	def run(self):
-		'''
-		Go through the blockchain on geth and fill up mongodb with block data.
-		'''
-		logging.debug("Processing geth blockchain:")
-		logging.info("Highest block found as: %s"%str(self.max_block_geth))
-		logging.info("Number of blocks to process: %s"%(len(self.block_queue)))
-
-		# Make sure the database isn't missing any blocks up to this point
-		logging.debug("Verifying that mongo isn't missing any blocks...")
-		self.max_block_mongo = 1
-		test = list()
-		if len(self.block_queue) > 0:
-			print("Looking for missing blocks...")
-			self.max_block_mongo = self.block_queue.pop()
-			for n in tqdm(range(1, self.max_block_mongo)):
-				if len(self.block_queue) == 0:
-					# If we have reached the max index of the queue,
-					#	break the loop
-					break
-				else:
-					# 	-- If a block with number = current index is not in
-					#		the queue, add it to mongo.
-					#	-- If the lowest block number in the queue (_n) is
-					#		not the current running index (n), then _n > n
-					#		and we must add block n to mongo. After doing so,
-					#		we will add _n back to the queue.
-					_n = self.block_queue.popleft()
-					if n != _n:
-						self.add_block(n)
-						self.block_queue.appendleft(_n)
-						logging.info("Added block %s"%n)
-
-		#	Get all new blocks
-		print("Processing remainder of the blockchain...")
-		for n in tqdm(range(self.max_block_mongo, self.max_block_geth)):
-			self.add_block(n)
-
-		print("Done!\n")
+        print("Done!\n")
