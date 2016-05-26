@@ -1,5 +1,4 @@
 """Create a snapshot of the ethereum network."""
-
 import six.moves.cPickle as pickle
 from graph_tool.all import *
 import pymongo
@@ -68,8 +67,8 @@ class TxnGraph(object):
 
         self.f_pickle = None
         self.f_snapshot = None
-        self.start_block = args[0] if len(args) > 0 else 0
-        self.end_block = args[1] if len(args) > 1 else 1
+        self.start_block = max(args[0] if len(args) > 0 else 1, 1)
+        self.end_block = args[1] if len(args) > 1 else 2
 
         self.start_timestamp = None
         self.end_timestamp = None
@@ -90,8 +89,7 @@ class TxnGraph(object):
         self.exchanges = list()
         # Record all contracts
         self.contracts = list()
-
-
+        # Run
         self._init(snap, save, load, previous)
 
     def _init(self, snap, save, load, previous):
@@ -99,25 +97,14 @@ class TxnGraph(object):
 
         # Accept a previous graph as an argument
         if previous:
-            a_str = "previous is of form {'graph': <Graph>, 'end_block': <int>}"
+            a_str = "prev is of form {'graph': <Graph>, 'end_block': <int>}"
             assert "graph" in previous, a_str
             self.graph = previous["graph"]
             assert "end_block" in previous, a_str
             self.start_block = previous["end_block"]
 
-
-        # Set file paths
-        self.f_pickle = "%s/pickles/%s_%s.p"%(
-            DIR, self.start_block, self.end_block
-        )
-
-        self.f_graph = "%s/graphs/%s_%s.gt"%(
-            DIR, self.start_block, self.end_block
-        )
-
-        self.f_snapshot = "%s/snapshots/%s_%s.png"%(
-            DIR, self.start_block, self.end_block
-        )
+        # Set filepaths
+        self._setFilePaths()
 
         # Load a previous graph
         if load:
@@ -132,6 +119,18 @@ class TxnGraph(object):
             if save:
                 self.save()
 
+    def _setFilePaths(self):
+        """Set the file paths based on the start/end block numbers."""
+        self.f_pickle = "{}/pickles/{}_{}.p".format(
+            DIR, self.start_block, self.end_block
+        )
+        self.f_graph = "{}/graphs/{}_{}.gt".format(
+            DIR, self.start_block, self.end_block
+        )
+        self.f_snapshot = "{}/snapshots/{}_{}.png".format(
+            DIR, self.start_block, self.end_block
+        )
+
     def _getMongoClient(self):
         try:
             # Try a connection to mongo and force a findOne request.
@@ -142,15 +141,18 @@ class TxnGraph(object):
             popen = None
         except Exception as err:
             # If not, open up a mongod subprocess
-            cmd = "(mongod --dbpath %s > %s/mongo.log 2>&1) &"%(
+            cmd = "(mongod --dbpath {} > {}/mongo.log 2>&1) &".format(
                 os.environ["BLOCKCHAIN_MONGO_DATA_DIR"],
                 os.environ["BLOCKCHAIN_ANALYSIS_LOGS"])
 
             popen = subprocess.Popen(cmd, shell=True)
             client = pymongo.MongoClient(serverSelectionTimeoutMS=1000)
             transactions = client["blockchain"]["transactions"]
-        return transactions, popen
 
+        # Update timestamps
+        transactions = self._updateTimestamps(transactions)
+
+        return transactions, popen
 
     def _updateTimestamps(self, client):
         start = client.find_one({"number": self.start_block})
@@ -158,7 +160,6 @@ class TxnGraph(object):
         self.start_timestamp = start["timestamp"]
         self.end_timestamp = end["timestamp"]
         return client
-
 
     def _addEdgeWeight(self, newEdge, value):
         '''
@@ -169,7 +170,6 @@ class TxnGraph(object):
             self.edgeWeights[newEdge] += value
         else:
             self.edgeWeights[newEdge] = 0
-
 
     def _addVertexWeight(self, from_v, to_v, value):
         '''
@@ -188,33 +188,12 @@ class TxnGraph(object):
         else:
             self.vertexWeights[from_v] = 0
 
-
-    # PUBLIC
-
-    def snap(self, load=False):
-        '''
-        INPUT: None
-        OUTPUT: None
-
-        Take a snapshot of the graph of transactions.
-        This essentially builds a graph with addresses (vertices) and
-        transactions (edges). It also adds a PropertyMap of <double>s to the
-        graph corresponding to transaction amounts (i.e. weights).
-        '''
-
-        # Set up the mongo client
-        client, popen = self._getMongoClient()
-
-        # Update timestamps
-        client = self._updateTimestamps(client)
-
-        # Add PropertyMaps
-        self.edgeWeights = self.graph.new_edge_property("double")
-        self.vertexWeights = self.graph.new_vertex_property("double")
-
-        # Get a cursor containing all of the blocks between the start/end blocks
+    def _addBlocks(self, client, start, end):
+        """Add new blocks to current graph attribute."""
+        # Get a cursor containing all of the blocks
+        # between the start/end blocks
         blocks = client.find(
-            {"number":{"$gt": self.start_block, "$lt": self.end_block}},
+            {"number": {"$gt": start, "$lt": end}},
             sort=[("number", pymongo.ASCENDING)]
         )
         for block in blocks:
@@ -225,7 +204,8 @@ class TxnGraph(object):
 
                     # Graph vetices will be referenced temporarily, but the
                     #   unique addresses will persist in self.nodes
-                    to_v = None; from_v = None
+                    to_v = None
+                    from_v = None
 
                     # Exclude self referencing transactions
                     if txn["to"] == txn["from"]:
@@ -260,20 +240,44 @@ class TxnGraph(object):
         self.graph.vertex_properties["weight"] = self.vertexWeights
         self.graph.edge_properties["weight"] = self.edgeWeights
 
+    # PUBLIC
+    # ------
+    def snap(self):
+        """
+        Take a snapshot of the graph of transactions.
+
+        Description:
+        ------------
+        This essentially builds a graph with addresses (vertices) and
+        transactions (edges). It also adds a PropertyMap of <double>s to the
+        graph corresponding to transaction amounts (i.e. weights). The default
+        behavior of this is to initialize a new graph with data between
+        start_block and end_block, however it can be used with the 'extend'
+        method.
+
+        Parameters:
+        -----------
+        start <int>, default self.start_block: the absolute block to start with
+        end <int>, default self.end_block: the absolute block to end with
+        """
+
+        # Set up the mongo client
+        client, popen = self._getMongoClient()
+
+        # Add PropertyMaps
+        self.edgeWeights = self.graph.new_edge_property("double")
+        self.vertexWeights = self.graph.new_vertex_property("double")
+
+        # Add blocks to the graph
+        self._addBlocks(client, self.start_block, self.end_block)
 
         # Kill the mongo client if it was spawned in this process
         if popen:
-            ## TODO get this to work
+            # TODO get this to work
             popen.kill()
 
     def save(self):
-        '''
-        INPUT: None
-        OUTPUT: None
-
-        Save a pickle of the TxnGraph and save the graph_tool Graph object
-        separately.
-        '''
+        """Pickle TxnGraph. Save the graph_tool Graph object separately."""
         # Dont save empty graphs
         if len(self.nodes) == 0:
             return
@@ -309,19 +313,22 @@ class TxnGraph(object):
         self.graph = tmp["graph"]
 
     def load(self, start_block, end_block):
-        '''
-        INPUT start_block <int>, end_block <int>
-        OUTPUT None
+        """
+        Load a TxnGraph.
 
+        Description:
+        ------------
         Load a pickle of a different TxnGraph object as well as a saved Graph
-        object as TxnGraph.graph.
-        This can be called upon instantiation with load=True OR can be called
-        any time by passing new start/end block params.
-        '''
+        object as TxnGraph.graph. This can be called upon instantiation with
+        load=True OR can be called any time by passing new start/end block
+        params.
 
-        self.f_pickle = "%s/pickles/%s_%s.p"%(DIR, start_block, end_block)
-        self.f_graph = "%s/graphs/%s_%s.gt"%(DIR, start_block, end_block)
-        self.f_snapshot = "%s/snapshots/%s_%s.png"%(DIR, self.start_block, self.end_block)
+        Parameters:
+        -----------
+        start_block <int>
+        end_block <int>
+        """
+        self._setFilePaths
 
         # Load the graph from file
         tmp_graph = load_graph(self.f_graph)
@@ -333,25 +340,28 @@ class TxnGraph(object):
             self.graph = tmp_graph
             input.close()
 
-
-
-
-    # Draw the graph
     def draw(self, **kwargs):
-        '''
-        INPUT: w <int> (optional, default=5000), h <int> (optional, default=5000)
-        OUTPUT: None
+        """
+        Draw the graph.
 
+        Description:
+        ------------
         Draw the graph and save to a .png file indexed by the start and
         end block of the TxnGraph
-        '''
+
+        Parameters:
+        -----------
+        w <int> (optional, default=5000): width
+        h <int> (optional, default=5000): height
+        """
         w = kwargs["w"] if "w" in kwargs else 1920*2
         h = kwargs["h"] if "h" in kwargs else 1080*2
 
         # We want the vertices to be sized proportional to the number of
         # transactions they are part of
-        #deg = self.graph.degree_property_map("total")
+        # deg = self.graph.degree_property_map("total")
         deg = copy.deepcopy(self.vertexWeights)
+
         # Don't draw an empty graph
         if not self.graph.num_vertices():
             print("Nothing to draw!")
@@ -360,10 +370,9 @@ class TxnGraph(object):
         # Testing to allow negative numbers
         deg.a = abs(deg.a)**0.5
 
-
         # For some reason this works
-        #(TODO figure out how to scale this consistently)
-        #deg.a = deg.a**0.5
+        # (TODO figure out how to scale this consistently)
+        # deg.a = deg.a**0.5
 
         # We want the largest node to be roughly 10%
         # of the width of the image (somewhat arbitrary)
@@ -371,7 +380,7 @@ class TxnGraph(object):
         deg.a = deg.a*scale
 
         # For some reason this doesn't work
-        #deg.a = deg.a*scale # For some reason this blows up the output
+        # deg.a = deg.a*scale # For some reason this blows up the output
 
         # Set K=scale because we want the average edge length
         # to be the size of the largest node
@@ -382,11 +391,37 @@ class TxnGraph(object):
             pos=pos,
             vertex_size=deg,
             vertex_fill_color=deg,
-            #edge_pen_width=scaledEdgeWeights,
-            #edge_control_points=control, # some curvy edges
             pen_width=0,
             bg_color=[1,1,1,1],
             output=self.f_snapshot,
             output_size=(w,h),
             fit_view=True
-            )
+        )
+
+    def extend(self, n, save=True):
+        """
+        Add n blocks to the current TxnGraph instance.
+
+        Description:
+        ------------
+        Rather than creating a bunch of TxnGraph instances from scratch,
+        this method can be used to add n blocks to the existing TxnGraph
+        instance. It can be called multiple times to iterate over the block
+        chain with resolution of n blocks. The extended TxnGraph will be
+        saved by default.
+
+        Parameters:
+        -----------
+        n <int>: number of blocks to add (from the last_block)
+        save <bool>, default True: save the new state automatically
+        """
+        old_end = self.end_block
+        new_end = self.end_block + n
+
+        client, popen = self._getMongoClient()
+        self._addBlocks(client, old_end, new_end)
+        self.end_block = new_end
+        self._setFilePaths()
+
+        if save:
+            self.save()

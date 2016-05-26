@@ -67,7 +67,8 @@ def highestBlock(client):
     <int>
     """
     n = client.find_one(sort=[("number", pymongo.DESCENDING)])
-    if not n:									# If the database is empty, the highest block # is 0
+    if not n:
+        # If the database is empty, the highest block # is 0
         return 0
     assert "number" in n, "Highest block is incorrectly formatted"
     return n["number"]
