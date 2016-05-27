@@ -1,4 +1,5 @@
-"""Create a snapshot of the ethereum network."""
+"""Create a snapshot of the Ethereum network."""
+
 import six.moves.cPickle as pickle
 from graph_tool.all import *
 import pymongo

@@ -24,7 +24,7 @@ def main():
 	c = Crawler.Crawler()
 
 	# Kill processes
-	subprocess.call(["scripts/kill_crawler.sh"])
+	subprocess.call(["bash_scripts/kill_crawler.sh"])
 
 if __name__ == "__main__":
 	main()

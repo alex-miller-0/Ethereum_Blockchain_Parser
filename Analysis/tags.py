@@ -1,4 +1,4 @@
-"""A list of various addresses that should be tagged or blacklisted."""
+"""Various 'special' addresses that should be tagged."""
 
 from collections import defaultdict
 
