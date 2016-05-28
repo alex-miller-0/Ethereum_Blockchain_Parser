@@ -34,17 +34,16 @@ def loadRaw():
         return pickle.load(input)
 
 
-def parseData(data, field):
-    """Parse the data into a defaultdict given a list of data and a field."""
-    datadict = defaultdict(dict)
+def getPrice(data, field, timestamp, period=300):
+    """Get the closing price of the date closest to the timestamp."""
     for d in data:
-        datadict[d["date"]] = d[field]
-    return datadict
-
+        # This loops through dates in order so we want the one right before
+        # the provided timestamp.
+        if timestamp - d["date"] <= 300:
+            return d[field]
 
 if __name__ == "__main__":
     # polo_data = getData()
     # saveRaw(polo_data)
-    polo_data = loadRaw()
-    price_data = parseData(polo_data, "weightedAverage")
-    print(len(price_data))
+    # polo_data = loadRaw()
+    pass

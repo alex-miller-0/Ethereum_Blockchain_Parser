@@ -86,6 +86,8 @@ class TxnGraph(object):
         # PropertyMap of vertices weighted by eth value they hold
         # at the time of the end_block.
         self.vertexWeights = None
+        # All addresses (each node has an address)
+        self.addresses = None
         # Record big exchange addresses
         self.exchanges = list()
         # Record all contracts
@@ -216,6 +218,8 @@ class TxnGraph(object):
                     if txn["to"] not in self.nodes:
                         to_v = self.graph.add_vertex()
                         self.nodes[txn["to"]] = to_v
+                        self.addresses[to_v] = txn["to"]
+
                         # If there is data, this is going to a contract
                         if txn["data"] != "0x":
                             self.contracts.append(txn["to"])
@@ -226,6 +230,7 @@ class TxnGraph(object):
                     if txn["from"] not in self.nodes:
                         from_v = self.graph.add_vertex()
                         self.nodes[txn["from"]] = from_v
+                        self.addresses[from_v] = txn["from"]
                     else:
                         from_v = self.nodes[txn["from"]]
 
@@ -268,6 +273,7 @@ class TxnGraph(object):
         # Add PropertyMaps
         self.edgeWeights = self.graph.new_edge_property("double")
         self.vertexWeights = self.graph.new_vertex_property("double")
+        self.addresses = self.graph.new_vertex_property("string")
 
         # Add blocks to the graph
         self._addBlocks(client, self.start_block, self.end_block)
@@ -289,6 +295,7 @@ class TxnGraph(object):
             "edges": self.edges,
             "edgeWeights": self.edgeWeights,
             "vertexWeights": self.vertexWeights,
+            "addresses": self.addresses,
             "graph": self.graph
         }
         # Empty the graph_tool objects
@@ -296,6 +303,7 @@ class TxnGraph(object):
         self.edges = list()
         self.edgeWeights = None
         self.vertexWeights = None
+        self.addresses = None
 
         # Save the graph to a file
         self.graph.save(self.f_graph, fmt="gt")
@@ -311,6 +319,7 @@ class TxnGraph(object):
         self.edges = tmp["edges"]
         self.edgeWeights = tmp["edgeWeights"]
         self.vertexWeights = tmp["vertexWeights"]
+        self.addresses = tmp["addresses"]
         self.graph = tmp["graph"]
 
     def load(self, start_block, end_block):

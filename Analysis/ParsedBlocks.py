@@ -2,7 +2,7 @@
 
 import tags
 from ContractMap import ContractMap
-
+import prices
 
 class ParsedBlocks(object):
     """
@@ -47,19 +47,27 @@ class ParsedBlocks(object):
         """Initialize the graph, address hash maps, and data fields."""
         self.txn_graph = txn_graph
 
+        # Global data:
+        # -------------
         # Tagged addresses (exchanges, mining pools, contracts)
         # 1: Exchanges, 2: Crowdsale contracts, 3: mining pools, 0: Other
         self.tags = tags.tags
         # 1: Contracts, 0: Other
         self.contracts = ContractMap(load=True).addresses
 
+        # Snapshot specific data:
+        # ------------------------
         # Bookkeeping
         self.start_block = txn_graph.start_block
         self.end_block = txn_graph.end_block
         self.start_timestamp = txn_graph.start_timestamp
         self.end_timestamp = txn_graph.end_timestamp
 
-        # Relevent metrics
+        # Historical prices
+        self.price = self._getPrice()
+
+        # Relevent metrics:
+        # -----------------
         self.transaction_sum = 0
         self.transaction_count = 0
         self.exchange_out_sum = 0
@@ -85,15 +93,24 @@ class ParsedBlocks(object):
         if run:
             self._parse()
 
-    # PRIVATE
+    # PRIVATE METHODS
 
-    def _isPeer(self, v):
+    def _getPrice(self):
+        """Get the average of price between these two blocks."""
+        return prices.getPrice(
+            prices.loadRaw(),
+            "weightedAverage",
+            self.start_timestamp,
+            self.end_timestamp
+        )
+
+    def _isPeer(self, addr):
         """
         Determine if a vertex corresponds to a peer address.
 
         This means it is not a contract, crowdsale, exchange, or mining pool.
         """
-        if not self.contracts[v] and not self.tags[v]:
+        if not self.contracts[addr] and not self.tags[addr]:
             return True
         return False
 
@@ -109,30 +126,33 @@ class ParsedBlocks(object):
 
         # Iterates over a bunch of Edge instances (i.e. transactions)
         for e in self.txn_graph.graph.edges():
+            to_addr = self.txn_graph.addresses[e.target()]
+            from_addr = self.txn_graph.addresses[e.source()]
+
             amount = eWeights[e]
             # The edgeWeight of this edge is the amount of the transaction
             self.transaction_count += 1
             self.transaction_sum += amount
 
             # If the target/source of the txn is an exchange:
-            if self.tags[e.source()] == 1:
+            if self.tags[from_addr] == 1:
                 self.exchange_out_sum += amount
                 self.exchange_out_count += 1
-            elif self.tags[e.target()] == 1:
+            elif self.tags[to_addr] == 1:
                 self.exchange_in_sum += amount
                 self.exchange_in_count += 1
 
             # If the target is a crowdsale wallet:
-            if self.tags[e.target()] == 2:
+            if self.tags[to_addr] == 2:
                 self.crowdsale_txn_sum += amount
                 self.crowdsale_txn_count += 1
 
             # If the target is a contract:
-            if self.contracts[e.target()]:
+            if self.contracts[to_addr]:
                 self.contract_txn_sum += amount
                 self.contract_txn_count += 1
 
             # If source and target are both peer nodes
-            if self._isPeer(e.target()) and self._isPeer(e.source()):
+            if self._isPeer(to_addr) and self._isPeer(from_addr):
                 self.p2p_txn_sum += amount
                 self.p2p_txn_count += 1
