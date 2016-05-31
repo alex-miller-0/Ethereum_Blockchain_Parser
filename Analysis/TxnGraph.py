@@ -241,9 +241,12 @@ class TxnGraph(object):
                     # Update the weights
                     self._addEdgeWeight(newEdge, txn["value"])
                     self._addVertexWeight(from_v, to_v, txn["value"])
+        self._addPropertyMaps()
 
-        # Add the weights to the graph
+    def _addPropertyMaps(self):
+        """Add PropertyMap attributes to Graph instance."""
         self.graph.vertex_properties["weight"] = self.vertexWeights
+        self.graph.vertex_properties["address"] = self.addresses
         self.graph.edge_properties["weight"] = self.edgeWeights
 
     # PUBLIC

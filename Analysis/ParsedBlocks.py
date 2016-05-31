@@ -3,6 +3,8 @@
 import tags
 from ContractMap import ContractMap
 import prices
+import os
+
 
 class ParsedBlocks(object):
     """
@@ -43,9 +45,10 @@ class ParsedBlocks(object):
 
     """
 
-    def __init__(self, txn_graph, run=True):
+    def __init__(self, txn_graph, run=True, csv_file="blockchain.csv"):
         """Initialize the graph, address hash maps, and data fields."""
         self.txn_graph = txn_graph
+        self.csv_file = csv_file
 
         # Global data:
         # -------------
@@ -68,32 +71,49 @@ class ParsedBlocks(object):
 
         # Relevent metrics:
         # -----------------
-        self.transaction_sum = 0
-        self.transaction_count = 0
-        self.exchange_out_sum = 0
-        self.exchange_out_count = 0
-        self.exchange_in_sum = 0
-        self.exchange_in_count = 0
-        self.contract_txn_sum = 0
-        self.contract_txn_count = 0
-        self.crowdsale_txn_sum = 0
-        self.crowdsale_txn_count = 0
-        self.p2p_txn_sum = 0
-        self.p2p_txn_count = 0
-
-        self.peer_txns_w_data = 0
-        self.new_addresses = 0
-
-        # The wealth will be represented in a list and before
-        #   saving to a DB, the mean/std will be calculated
+        self.data = {
+            "timestamp_start": self.start_timestamp,
+            "timestamp_end": self.end_timestamp,
+            "block_start": self.start_block,
+            "block_end": self.end_block,
+            "transaction_sum": 0,
+            "transaction_count": 0,
+            "exchange_out_sum": 0,
+            "exchange_out_count": 0,
+            "exchange_in_sum": 0,
+            "exchange_in_count": 0,
+            "contract_txn_sum": 0,
+            "contract_txn_count": 0,
+            "crowdsale_txn_sum": 0,
+            "crowdsale_txn_count": 0,
+            "p2p_txn_sum": 0,
+            "p2p_txn_count": 0,
+            "peer_txns_w_data": 0,
+            "new_addresses": 0,
+            "peer_wealth_mean": 0,
+            "peer_wealth_std": 0
+        }
         self.peer_wealth = list()
-        self.peer_wealth_mean = 0
-        self.peer_wealth_std = 0
-
+        self.headers = None
         if run:
-            self._parse()
+            self._setHeaders()
+            self.parse()
+            self.saveData()
 
     # PRIVATE METHODS
+
+    def _setHeaders(self):
+        """Get the headers that will be used in the CSV data file."""
+        self.headers = [key for key in self.data]
+
+    def _getData(self):
+        """Return a list of the data in the order of the headers."""
+        return [str(self.data[h]) for h in self.headers]
+
+    def _startCSV(self):
+        """Create a CSV file if none exists."""
+        with open(self.csv_file, "w") as f:
+            f.write(', '.join(self.headers)+'\n')
 
     def _getPrice(self):
         """Get the average of price between these two blocks."""
@@ -114,8 +134,13 @@ class ParsedBlocks(object):
             return True
         return False
 
-    def _parse(self):
+    # PUBLIC METHODS
+
+    def parse(self):
         """Iterate through the graph to calculate metrics of interest."""
+        if not self.headers:
+            self._setHeaders()
+
         vWeights = self.txn_graph.graph.vertex_properties["weight"]
         eWeights = self.txn_graph.graph.edge_properties["weight"]
 
@@ -125,34 +150,42 @@ class ParsedBlocks(object):
                 self.peer_wealth.append(vWeights[v])
 
         # Iterates over a bunch of Edge instances (i.e. transactions)
+        address_prop = self.txn_graph.graph.vertex_properties["address"]
         for e in self.txn_graph.graph.edges():
-            to_addr = self.txn_graph.addresses[e.target()]
-            from_addr = self.txn_graph.addresses[e.source()]
+            to_addr = address_prop[e.target()]
+            from_addr = address_prop[e.source()]
 
             amount = eWeights[e]
             # The edgeWeight of this edge is the amount of the transaction
-            self.transaction_count += 1
-            self.transaction_sum += amount
+            self.data["transaction_count"] += 1
+            self.data["transaction_sum"] += amount
 
             # If the target/source of the txn is an exchange:
             if self.tags[from_addr] == 1:
-                self.exchange_out_sum += amount
-                self.exchange_out_count += 1
+                self.data["exchange_out_sum"] += amount
+                self.data["exchange_out_count"] += 1
             elif self.tags[to_addr] == 1:
-                self.exchange_in_sum += amount
-                self.exchange_in_count += 1
+                self.data["exchange_in_sum"] += amount
+                self.data["exchange_in_count"] += 1
 
             # If the target is a crowdsale wallet:
             if self.tags[to_addr] == 2:
-                self.crowdsale_txn_sum += amount
-                self.crowdsale_txn_count += 1
+                self.data["crowdsale_txn_sum"] += amount
+                self.data["crowdsale_txn_count"] += 1
 
             # If the target is a contract:
             if self.contracts[to_addr]:
-                self.contract_txn_sum += amount
-                self.contract_txn_count += 1
+                self.data["contract_txn_sum"] += amount
+                self.data["contract_txn_count"] += 1
 
             # If source and target are both peer nodes
             if self._isPeer(to_addr) and self._isPeer(from_addr):
-                self.p2p_txn_sum += amount
-                self.p2p_txn_count += 1
+                self.data["p2p_txn_sum"] += amount
+                self.data["p2p_txn_count"] += 1
+
+    def saveData(self):
+        """Save the data to a line in the CSV file."""
+        if not os.path.isfile(self.csv_file):
+            self._startCSV()
+        with open(self.csv_file, "a") as f:
+            f.write(', '.join(self._getData())+'\n')

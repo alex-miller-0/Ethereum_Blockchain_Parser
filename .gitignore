@@ -7,4 +7,5 @@ Analysis/data/graphs
 *.pyc
 *.log
 *.p
+*.csv
 .gitignore
