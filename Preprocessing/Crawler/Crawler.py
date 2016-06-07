@@ -11,7 +11,8 @@ import time
 import tqdm
 sys.path.append(os.path.realpath(os.path.dirname(__file__)))
 
-LOGFIL = "./logs/crawler.log"
+DIR = os.environ['ETH_BLOCKCHAIN_ANALYSIS_DIR']
+LOGFIL = "{}/logs/crawler.log".format(DIR)
 util.refresh_logger(LOGFIL)
 logging.basicConfig(filename=LOGFIL, level=logging.DEBUG)
 logging.getLogger("urllib3").setLevel(logging.WARNING)

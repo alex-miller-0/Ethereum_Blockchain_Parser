@@ -4,10 +4,11 @@ from collections import defaultdict
 import requests
 import json
 import pickle
-import os.path
+import os
 import time
 import pymongo
-
+import util
+DIR = util.set_env()
 
 class ContractMap(object):
     """
@@ -43,7 +44,7 @@ class ContractMap(object):
                 mongo_client=None,
                 last_block=0,
                 load=False,
-                filepath="./.contracts.p"):
+                filepath="{}.contracts.p".format(DIR)):
         """Initialize with a mongo client and an optional last block."""
         self.client = mongo_client
         self.last_block = last_block

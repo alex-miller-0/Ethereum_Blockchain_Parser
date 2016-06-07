@@ -4,6 +4,7 @@ import tags
 from ContractMap import ContractMap
 import prices
 import os
+import csv
 
 
 class ParsedBlocks(object):
@@ -104,7 +105,28 @@ class ParsedBlocks(object):
 
     def _setHeaders(self):
         """Get the headers that will be used in the CSV data file."""
-        self.headers = [key for key in self.data]
+        self.headers = [
+            "timestamp_start",
+            "timestamp_end",
+            "block_start",
+            "block_end",
+            "transaction_sum",
+            "transaction_count",
+            "exchange_out_sum",
+            "exchange_out_count",
+            "exchange_in_sum",
+            "exchange_in_count",
+            "contract_txn_sum",
+            "contract_txn_count",
+            "crowdsale_txn_sum",
+            "crowdsale_txn_count",
+            "p2p_txn_sum",
+            "p2p_txn_count",
+            "peer_txns_w_data",
+            "new_addresses",
+            "peer_wealth_mean",
+            "peer_wealth_std"
+        ]
 
     def _getData(self):
         """Return a list of the data in the order of the headers."""
@@ -113,7 +135,8 @@ class ParsedBlocks(object):
     def _startCSV(self):
         """Create a CSV file if none exists."""
         with open(self.csv_file, "w") as f:
-            f.write(', '.join(self.headers)+'\n')
+            w = csv.DictWriter(f, fieldnames=self.headers)
+            w.writeheader()
 
     def _getPrice(self):
         """Get the average of price between these two blocks."""
@@ -188,4 +211,5 @@ class ParsedBlocks(object):
         if not os.path.isfile(self.csv_file):
             self._startCSV()
         with open(self.csv_file, "a") as f:
-            f.write(', '.join(self._getData())+'\n')
+            w = csv.DictWriter(f, fieldnames=self.headers)
+            w.writerow(self.data)

@@ -2,15 +2,31 @@
 
 This is a project to analyze network traffic in the Ethereum blockchain. Assuming you have a synced node running, this tool will parse your blockchain into a Mongo database and will create snapshots (in the form of directed graphs) containing all of the transactions made up to that point. Blockchains are awesome for data analysis because they are perfect data sets.
 
+![Blocks 1 to 120000](".content/1_120000.png")
+
+
+## Usage
+
+To get parsed blockchain transaction data, simply run the following scripts, which are located in the `Scripts` directory. Note that at the time of writing, the Ethereum blockchain has about 1.5 million blocks so this will likely take several hours.
+
+1. Funnel the data from geth to MongoDB:
+
+    python3 preprocess.py
+
+2. Create a series of snapshots of the blockchain through time and for each snapshot, calculate key metrics. Dump the data into a CSV file:
+
+    python3 extract.py
+
+
 ## Prerequisites:
 
 Before using this tool to analyze your copy of the blockchain, you need the following things:
 
 ### Geth
-[Geth](https://github.com/ethereum/go-ethereum/wiki/Geth) is the Go implementation of a full Ethereum node. We will need to run it with the `--rpc` flag in order to request data (**WARNING** if you run this on a geth client containing an account that has ether in it, make sure you put a firewall 8545 or whatever port you run geth RPC on). 
+[Geth](https://github.com/ethereum/go-ethereum/wiki/Geth) is the Go implementation of a full Ethereum node. We will need to run it with the `--rpc` flag in order to request data (**WARNING** if you run this on a geth client containing an account that has ether in it, make sure you put a firewall 8545 or whatever port you run geth RPC on).
 
 A geth instance downloads the blockchain and processes it, saving the blocks as LevelDB files in the specified data directory (`~/.ethereum/chaindata` by default). The geth instance can be queried via RPC with the `eth_getBlockByNumber([block, true])` endpoint (see [here](https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_getblockbynumber)) to get the `X-th` block (with `true` indicating we want the transactional data included), which returns data of the form:
-  
+
     {
       number: 1000000,
       timestamp: 1465003569,
@@ -30,7 +46,7 @@ A geth instance downloads the blockchain and processes it, saving the blocks as 
           value: 201544820000000000
         }
       ]
-    } 
+    }
 
 Since I am only interested in `number`, `timestamps`, and `transactions` for this application, I have omitted the rest of the data, but there is lots of additional information in the block (explore [here](https://etherchain.org/blocks)), including a few Merkle trees to maintain hashes of state, transactions, and receipts (read [here](https://blog.ethereum.org/2015/11/15/merkling-in-ethereum/).
 
@@ -49,11 +65,13 @@ We will use mongo to essentially copy each block served by Geth, preserving its 
 This was written for python 3.4. Some things will probably break if you try to do this analysis in python 2.
 
 
-## Preprocessing
-
-Preprocessing is done with the `Crawler` class, which can be found in the `Preprocessing/Crawler` directory. Before instantiating a `Crawler` object, you need to have geth and mongo processes running. This can be by running `boot_scripts.sh` found in the `Crawler/scripts` directory. After these processes are running, either run `Crawler/crawl.py` or start a `Crawler()` instance. This will go through the processes of requesting and processing the blockchain from geth and copying it over to a mongo collection named `transactions`. Note that at the time of writing, the Ethereum blockchain has about 1.5 million blocks so this will take a few hours. Once copied over, you can close the `Crawler()` instance.
-
 ## Workflow
+
+The following outlines the procedure used to turn the data from bytes on the blockchain to data in a CSV file.
+
+### 1. Process the blockchain
+
+Preprocessing is done with the `Crawler` class, which can be found in the `Preprocessing/Crawler` directory. Before instantiating a `Crawler` object, you need to have geth and mongo processes running. Starting a `Crawler()` instance will go through the processes of requesting and processing the blockchain from geth and copying it over to a Mongo collection named `transactions`. Once copied over, you can close the `Crawler()` instance.
 
 ### 1. Take a snapshot of the blockchain
 
@@ -66,7 +84,7 @@ where a is the starting block (int) and b is ending block (int). This will load 
 To move on to the next snapshot (i.e. forward in time):
 
     snapshot.extend(c)
-    
+
 where `c` is the number of blocks to proceed.
 
 At each snapshot, the instance will automatically pickle the snapshot and save the state to a local file (disable on instantiation with `save=False`).

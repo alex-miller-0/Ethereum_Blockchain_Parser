@@ -8,7 +8,8 @@ import subprocess
 import signal
 import copy
 from tags import tags
-DIR = "data"
+import util
+DIR = util.set_env() + "data"
 
 
 class TxnGraph(object):
@@ -122,19 +123,19 @@ class TxnGraph(object):
             if save:
                 self.save()
 
-    def _setFilePaths(self):
+    def _setFilePaths(self, start=None, end=None):
         """Set the file paths based on the start/end block numbers."""
-        self.f_pickle = "{}/pickles/{}_{}.p".format(
-            DIR, self.start_block, self.end_block
-        )
-        self.f_graph = "{}/graphs/{}_{}.gt".format(
-            DIR, self.start_block, self.end_block
-        )
-        self.f_snapshot = "{}/snapshots/{}_{}.png".format(
-            DIR, self.start_block, self.end_block
-        )
+        if not start:
+            start = self.start_block
+        if not end:
+            start = self.end_block
+
+        self.f_pickle = "{}/pickles/{}_{}.p".format(DIR, start, end)
+        self.f_graph = "{}/graphs/{}_{}.gt".format(DIR, start, end)
+        self.f_snapshot = "{}/snapshots/{}_{}.png".format(DIR, start, end)
 
     def _getMongoClient(self):
+        """Connect to a mongo client (assuming one is running)."""
         try:
             # Try a connection to mongo and force a findOne request.
             # See if it makes it through.
@@ -158,6 +159,7 @@ class TxnGraph(object):
         return transactions, popen
 
     def _updateTimestamps(self, client):
+        """Lookup timestamps associated with start/end blocks and set them."""
         start = client.find_one({"number": self.start_block})
         end = client.find_one({"number": self.end_block})
         self.start_timestamp = start["timestamp"]
@@ -165,20 +167,20 @@ class TxnGraph(object):
         return client
 
     def _addEdgeWeight(self, newEdge, value):
-        '''
+        """
         Add to the weight of a given edge (i.e. the amount of ether that has
         flown through it). Create a new one if needed.
-        '''
+        """
         if self.edgeWeights[newEdge] is not None:
             self.edgeWeights[newEdge] += value
         else:
             self.edgeWeights[newEdge] = 0
 
     def _addVertexWeight(self, from_v, to_v, value):
-        '''
+        """
         Add to the weight of a given vertex (i.e. the amount of ether)
         it holds. Create a new weight if needed.
-        '''
+        """
         if self.vertexWeights[to_v] is not None:
             self.vertexWeights[to_v] += value
         else:
@@ -221,8 +223,9 @@ class TxnGraph(object):
                         self.addresses[to_v] = txn["to"]
 
                         # If there is data, this is going to a contract
-                        if txn["data"] != "0x":
-                            self.contracts.append(txn["to"])
+                        if "data" in txn:
+                            if txn["data"] != "0x":
+                                self.contracts.append(txn["to"])
                     else:
                         to_v = self.nodes[txn["to"]]
 
@@ -341,7 +344,7 @@ class TxnGraph(object):
         start_block <int>
         end_block <int>
         """
-        self._setFilePaths
+        self._setFilePaths(start_block, end_block)
 
         # Load the graph from file
         tmp_graph = load_graph(self.f_graph)
@@ -373,7 +376,7 @@ class TxnGraph(object):
         # We want the vertices to be sized proportional to the number of
         # transactions they are part of
         # deg = self.graph.degree_property_map("total")
-        deg = copy.deepcopy(self.vertexWeights)
+        deg = copy.deepcopy(self.graph.vertex_properties['weight'])
 
         # Don't draw an empty graph
         if not self.graph.num_vertices():
