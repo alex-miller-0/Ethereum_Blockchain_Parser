@@ -11,11 +11,13 @@ To get parsed blockchain transaction data, simply run the following scripts, whi
 
 1. Funnel the data from geth to MongoDB:
 
-    python3 preprocess.py
+
+        python3 preprocess.py
 
 2. Create a series of snapshots of the blockchain through time and for each snapshot, calculate key metrics. Dump the data into a CSV file:
 
-    python3 extract.py
+
+        python3 extract.py
 
 
 ## Prerequisites:
