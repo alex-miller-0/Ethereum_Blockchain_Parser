@@ -2,7 +2,7 @@
 
 This is a project to analyze network traffic in the Ethereum blockchain. Assuming you have a synced node running, this tool will parse your blockchain into a Mongo database and will create snapshots (in the form of directed graphs) containing all of the transactions made up to that point. Blockchains are awesome for data analysis because they are perfect data sets.
 
-![Blocks 1 to 120000](".content/1_120000.png")
+![Blocks 1 to 120000](.content/1_120000.jpg)
 
 
 ## Usage
