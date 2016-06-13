@@ -2,7 +2,7 @@
 
 This is a project to analyze network traffic in the Ethereum blockchain. Assuming you have a synced node running, this tool will parse your blockchain into a Mongo database and will create snapshots (in the form of directed graphs) containing all of the transactions made up to that point. Blockchains are awesome for data analysis because they are perfect data sets.
 
-![Blocks 1 to 120000](".content/1_120000.png")
+![Blocks 1 to 120000](.content/1_120000.jpg)
 
 
 ## Usage
@@ -11,11 +11,13 @@ To get parsed blockchain transaction data, simply run the following scripts, whi
 
 1. Funnel the data from geth to MongoDB:
 
-    python3 preprocess.py
+
+        python3 preprocess.py
 
 2. Create a series of snapshots of the blockchain through time and for each snapshot, calculate key metrics. Dump the data into a CSV file:
 
-    python3 extract.py
+
+        python3 extract.py
 
 
 ## Prerequisites:
@@ -73,7 +75,7 @@ The following outlines the procedure used to turn the data from bytes on the blo
 
 Preprocessing is done with the `Crawler` class, which can be found in the `Preprocessing/Crawler` directory. Before instantiating a `Crawler` object, you need to have geth and mongo processes running. Starting a `Crawler()` instance will go through the processes of requesting and processing the blockchain from geth and copying it over to a Mongo collection named `transactions`. Once copied over, you can close the `Crawler()` instance.
 
-### 1. Take a snapshot of the blockchain
+### 2. Take a snapshot of the blockchain
 
 A snapshot of the network (i.e. all of the transactions occurring between two timestamps, or numbered blocks in the block chain) can be taken with a `TxnGraph()` instance. This class can be found in the `Analysis` directory. Create an instance with:
 
@@ -97,7 +99,7 @@ Once `TxnGraph` is created, it will create a graph out of all of the data in the
 
 The `TxnGraph` instance state can be (and automatically is) pickled with `TxnGraph.save()` where the filename is parameterized by the start/end blocks and is saved. By default, this saves to the `Analysis/data/pickles` directory. If another instance was pickled with a different set of start/end blocks, it can be reloaded with `TxnGraph.load(a,b)`.
 
-### 2: (Optional) Add a lookup table for smart contract transactions
+### 3: (Optional) Add a lookup table for smart contract transactions
 
 An important consideration when doing an analysis of the Ethereum network is of smart contract addresses. Much ether flows to and from contracts, which you may want to distinguish from simple peer-to-peer transactions. This can be done by loading a `ContractMap` instance. It is recommended you pass the most recent block in the blockchain for `last_block`, as this will find all contracts that were transacted with up to that point in history:
 
@@ -113,6 +115,6 @@ An important consideration when doing an analysis of the Ethereum network is of 
 
 This will create a hash table of all contract addresses using a `defaultdict` and will save it to a pickle file.
 
-### 3: Aggregate data and analyze
+### 4: Aggregate data and analyze
 
 Once a snapshot has been created, initialize an instance of `ParsedBlocks` with a `TxnGraph` instance. This will automatically aggregate the data and save to a local CSV file, which can then be analyzed.
