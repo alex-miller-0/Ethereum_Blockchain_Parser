@@ -11,8 +11,10 @@ import time
 import tqdm
 sys.path.append(os.path.realpath(os.path.dirname(__file__)))
 
-DIR = os.environ['ETH_BLOCKCHAIN_ANALYSIS_DIR']
-LOGFIL = "{}/logs/crawler.log".format(DIR)
+DIR = os.environ['BLOCKCHAIN_MONGO_DATA_DIR']
+LOGFIL = "crawler.log"
+if "BLOCKCHAIN_ANALYSIS_LOGS" in os.environ:
+    LOGFIL = "{}/{}".format(os.environ['BLOCKCHAIN_ANALYSIS_LOGS'], LOGFIL)
 util.refresh_logger(LOGFIL)
 logging.basicConfig(filename=LOGFIL, level=logging.DEBUG)
 logging.getLogger("urllib3").setLevel(logging.WARNING)
@@ -59,15 +61,17 @@ class Crawler(object):
         # Initializes to default host/port = localhost/27017
         self.mongo_client = util.initMongo(MongoClient())
         # The max block number that is in mongo
-        self.max_block_mongo = self.highestBlockMongo()
+        self.max_block_mongo = None
         # The max block number in the public blockchain
-        self.max_block_geth = self.highestBlockEth()
+        self.max_block_geth = None
         # Record errors for inserting block data into mongo
         self.insertion_errors = list()
         # Make a stack of block numbers that are in mongo
         self.block_queue = util.makeBlockQueue(self.mongo_client)
 
         if start:
+            self.max_block_mongo = self.highestBlockMongo()
+            self.max_block_geth = self.highestBlockEth()
             self.run()
 
     def _rpcRequest(self, method, params, key):
