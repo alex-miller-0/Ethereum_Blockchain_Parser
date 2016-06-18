@@ -52,7 +52,13 @@ class Crawler(object):
 
     """
 
-    def __init__(self, start=True, rpc_port=8545, host="http://localhost"):
+    def __init__(
+        self,
+        start=True,
+        rpc_port=8545,
+        host="http://localhost",
+        delay=0.001
+    ):
         """Initialize the Crawler."""
         logging.debug("Starting Crawler")
         self.url = "{}:{}".format(host, rpc_port)
@@ -68,6 +74,8 @@ class Crawler(object):
         self.insertion_errors = list()
         # Make a stack of block numbers that are in mongo
         self.block_queue = util.makeBlockQueue(self.mongo_client)
+        # The delay between requests to geth
+        self.delay = delay
 
         if start:
             self.max_block_mongo = self.highestBlockMongo()
@@ -82,7 +90,7 @@ class Crawler(object):
             "jsonrpc": "2.0",
             "id": 0
         }
-        time.sleep(0.005)
+        time.sleep(self.delay)
         res = requests.post(
               self.url,
               data=json.dumps(payload),

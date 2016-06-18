@@ -144,7 +144,9 @@ def decodeBlock(block):
   	}
     """
     try:
-        b = block["result"]
+        b = block
+        if "result" in block:
+            b = block["result"]
         # Filter the block
         new_block = {
             "number": int(b["number"], 16),

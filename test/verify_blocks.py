@@ -17,7 +17,7 @@ def test_blocks():
     c = Crawler.Crawler(start=False)
     client = c.mongo_client
 
-    sample = random.sample(range(500000, 1500000), 50)
+    sample = random.sample(range(1490000, 1500000), 500)
     N = len(sample)
 
     # Track the number of times the number of transactions is different.
