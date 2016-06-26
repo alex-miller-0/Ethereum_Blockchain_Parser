@@ -1,13 +1,23 @@
-# eth-blockchain-data
+# Ethereum Blockchain Parser
 
-This is a project to analyze network traffic in the Ethereum blockchain. Assuming you have a synced node running, this tool will parse your blockchain into a Mongo database and will create snapshots (in the form of directed graphs) containing all of the transactions made up to that point. Blockchains are awesome for data analysis because they are perfect data sets.
+This is a project to parse the Ethereum blockchain from a local geth node. Blockchains are perfect data sets because they contain every transaction ever made on the network. This is valuable data if you want to analyze the network, but Ethereum stores its blockchain in [RLP](https://github.com/ethereum/wiki/wiki/RLP) encoded binary blobs within a series of LevelDB files and these are surprisingly difficult to access, even given the available tools. This project takes the approach of querying a local node via [JSON-RPC](https://github.com/ethereum/wiki/wiki/JSON-RPC), which returns unencoded transactional data, and then moves that data to a mongo database.
 
 ![Blocks 1 to 120000](.content/1_120000.jpg)
 
 
 ## Usage
 
-To get parsed blockchain transaction data, simply run the following scripts, which are located in the `Scripts` directory. Note that at the time of writing, the Ethereum blockchain has about 1.5 million blocks so this will likely take several hours.
+### Streaming data
+
+To stream blockchain data for real-time analysis, make sure you have both geth and mongo running and start the process with:
+
+        python3 stream.py
+
+Note that this will automatically backfill your mongo database with blocks that it is missing.
+
+### Backfilling your Mongo database
+
+To get data from the blockchain as it exists now and then stop parsing, simply run the following scripts, which are located in the `Scripts` directory. Note that at the time of writing, the Ethereum blockchain has about 1.5 million blocks so this will likely take several hours.
 
 1. Funnel the data from geth to MongoDB:
 
@@ -20,6 +30,7 @@ To get parsed blockchain transaction data, simply run the following scripts, whi
         python3 extract.py
 
 
+        
 ## Prerequisites:
 
 Before using this tool to analyze your copy of the blockchain, you need the following things:
