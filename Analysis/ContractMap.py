@@ -8,7 +8,7 @@ import os
 import time
 import pymongo
 import util
-DIR = util.set_env()
+DIR = "."
 
 class ContractMap(object):
     """
@@ -44,7 +44,7 @@ class ContractMap(object):
                 mongo_client=None,
                 last_block=0,
                 load=False,
-                filepath="{}.contracts.p".format(DIR)):
+                filepath="{}/.contracts.p".format(DIR)):
         """Initialize with a mongo client and an optional last block."""
         self.client = mongo_client
         self.last_block = last_block
@@ -59,6 +59,7 @@ class ContractMap(object):
 
         if self.client:
             self.find()
+            self.save()
 
     def _checkGeth(self):
         """Make sure geth is running in RPC on port 8545."""

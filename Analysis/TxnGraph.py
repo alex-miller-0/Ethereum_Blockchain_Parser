@@ -9,8 +9,9 @@ import signal
 import copy
 from tags import tags
 import util
-DIR = util.set_env() + "data"
-
+env = util.set_env()
+DIR = env["mongo"] + "/data"
+DATADIR = env["txn_data"]
 
 class TxnGraph(object):
     """
@@ -42,7 +43,7 @@ class TxnGraph(object):
 
         g = TxnGraph(previous={graph: <Graph>, end_block: <int>})
 
-    Draw the image (saved by default to DIR/snapshots/a_b.png,
+    Draw the image (saved by default to DATADIR/snapshots/a_b.png,
     where a=start_block, b=end_block):
 
         g.draw()
@@ -51,7 +52,7 @@ class TxnGraph(object):
 
         g.save()
 
-    Load a graph with start_block=a, end_block=b from DIR if it exists:
+    Load a graph with start_block=a, end_block=b from DATADIR if it exists:
 
         g.load(a, b)
 
@@ -130,9 +131,9 @@ class TxnGraph(object):
         if not end:
             start = self.end_block
 
-        self.f_pickle = "{}/pickles/{}_{}.p".format(DIR, start, end)
-        self.f_graph = "{}/graphs/{}_{}.gt".format(DIR, start, end)
-        self.f_snapshot = "{}/snapshots/{}_{}.png".format(DIR, start, end)
+        self.f_pickle = "{}/pickles/{}_{}.p".format(DATADIR, start, end)
+        self.f_graph = "{}/graphs/{}_{}.gt".format(DATADIR, start, end)
+        self.f_snapshot = "{}/snapshots/{}_{}.png".format(DATADIR, start, end)
 
     def _getMongoClient(self):
         """Connect to a mongo client (assuming one is running)."""
@@ -291,9 +292,13 @@ class TxnGraph(object):
 
     def save(self):
         """Pickle TxnGraph. Save the graph_tool Graph object separately."""
-        # Dont save empty graphs
-        if len(self.nodes) == 0:
-            return
+        if not os.path.exists(DATADIR+"/pickles"):
+            os.makedirs(DATADIR+"/pickles")
+        if not os.path.exists(DATADIR+"/graphs"):
+            os.makedirs(DATADIR+"/graphs")
+        if not os.path.exists(DATADIR+"/snapshots"):
+            os.makedirs(DATADIR+"/snapshots")
+
         # We cannot save any of the graph_tool objects so we need to stash
         # them in a temporary object
         tmp = {
@@ -311,8 +316,10 @@ class TxnGraph(object):
         self.vertexWeights = None
         self.addresses = None
 
-        # Save the graph to a file
-        self.graph.save(self.f_graph, fmt="gt")
+        # Save the graph to a file (but not if it is empty)
+        if len(self.nodes) > 0:
+            self.graph.save(self.f_graph, fmt="gt")
+
         self.graph = None
 
         # Save the rest of this object to a pickle

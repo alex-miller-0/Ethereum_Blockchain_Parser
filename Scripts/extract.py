@@ -10,7 +10,10 @@ from TxnGraph import TxnGraph
 import tqdm
 
 if __name__ == "__main__":
-    t = TxnGraph(0, 10000)
-    for i in tqdm.tqdm(range(150)):
+    max_block = 1700000
+    resolution = 1000
+
+    t = TxnGraph(1, 1000)
+    for i in tqdm.tqdm(range(max_block//resolution)):
         blocks = ParsedBlocks(t)
-        t.extend(10000)
+        t.extend(1000)

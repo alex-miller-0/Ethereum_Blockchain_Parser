@@ -5,7 +5,7 @@ from collections import defaultdict
 import tqdm
 import pickle
 import os
-DIR = os.environ['ETH_BLOCKCHAIN_ANALYSIS_DIR']
+DIR = "."
 
 def getData(period=300):
     """Get data from Poloniex API given a period. Returns a list."""
@@ -24,14 +24,14 @@ def getData(period=300):
 
 def saveRaw(data):
     """Save the raw data to a local pickle file."""
-    with open("{}.raw_prices.p".format(DIR), "wb") as output:
+    with open("{}/.raw_prices.p".format(DIR), "wb") as output:
         pickle.dump(data, output)
         output.close()
 
 
 def loadRaw():
     """Load raw data."""
-    with open("{}.raw_prices.p".format(DIR), "rb") as input:
+    with open("{}/.raw_prices.p".format(DIR), "rb") as input:
         return pickle.load(input)
 
 
@@ -44,7 +44,6 @@ def getPrice(data, field, timestamp, period=300):
             return d[field]
 
 if __name__ == "__main__":
-    # polo_data = getData()
-    # saveRaw(polo_data)
-    # polo_data = loadRaw()
-    pass
+    polo_data = getData()
+    saveRaw(polo_data)
+    polo_data = loadRaw()

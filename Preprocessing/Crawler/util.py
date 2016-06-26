@@ -2,6 +2,7 @@
 import pymongo
 from collections import deque
 import os
+import pdb
 
 DB_NAME = "blockchain"
 COLLECTION = "transactions"
@@ -54,7 +55,7 @@ def insertMongo(client, d):
         client.insert_one(d)
         return None
     except Exception as err:
-        return err
+        pass
 
 
 def highestBlock(client):
@@ -150,15 +151,8 @@ def decodeBlock(block):
         # Filter the block
         new_block = {
             "number": int(b["number"], 16),
-            "miner": b["miner"],
-            "difficulty": int(b["difficulty"], 16),
-            "totalDifficulty": int(b["totalDifficulty"], 16),
-            "size": int(b["size"], 16),
-            "gasLimit": int(b["gasLimit"], 16),
-            "gasUsed": int(b["gasUsed"], 16),
             "timestamp": int(b["timestamp"], 16),		# Timestamp is in unix time
-            "transactions": [],
-            "uncles": b["uncles"]
+            "transactions": []
         }
         # Filter and decode each transaction and add it back
         # 	Value, gas, and gasPrice are all converted to ether
@@ -166,9 +160,7 @@ def decodeBlock(block):
             new_t = {
                 "from": t["from"],
                 "to": t["to"],
-                "value": float(int(t["value"], 16))/1000000000000000000,
-                "gas": float(int(t["gas"], 16))/1000000000000000000,
-                "gasPrice": float(int(t["gasPrice"], 16))/1000000000000000000,
+                "value": float(int(t["value"], 16))/1000000000000000000.,
                 "data": t["input"]
             }
             new_block["transactions"].append(new_t)

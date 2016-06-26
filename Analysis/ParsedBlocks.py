@@ -71,6 +71,9 @@ class ParsedBlocks(object):
         self.price = self._getPrice()
 
         # Relevent metrics:
+        # Note that the total supply is 5*block_n + the supply
+        # at genesis. This neglects uncle rewards, which are
+        # about 0.06% of the total supply.
         # -----------------
         self.data = {
             "timestamp_start": self.start_timestamp,
@@ -92,10 +95,13 @@ class ParsedBlocks(object):
             "peer_txns_w_data": 0,
             "new_addresses": 0,
             "peer_wealth_mean": 0,
-            "peer_wealth_std": 0
-        }
+            "peer_wealth_std": 0,
+            "total_supply": 7200990.5 + 5.0*self.end_block
+            }
+
         self.peer_wealth = list()
         self.headers = None
+
         if run:
             self._setHeaders()
             self.parse()
@@ -105,28 +111,7 @@ class ParsedBlocks(object):
 
     def _setHeaders(self):
         """Get the headers that will be used in the CSV data file."""
-        self.headers = [
-            "timestamp_start",
-            "timestamp_end",
-            "block_start",
-            "block_end",
-            "transaction_sum",
-            "transaction_count",
-            "exchange_out_sum",
-            "exchange_out_count",
-            "exchange_in_sum",
-            "exchange_in_count",
-            "contract_txn_sum",
-            "contract_txn_count",
-            "crowdsale_txn_sum",
-            "crowdsale_txn_count",
-            "p2p_txn_sum",
-            "p2p_txn_count",
-            "peer_txns_w_data",
-            "new_addresses",
-            "peer_wealth_mean",
-            "peer_wealth_std"
-        ]
+        self.headers = self.data.keys()
 
     def _getData(self):
         """Return a list of the data in the order of the headers."""

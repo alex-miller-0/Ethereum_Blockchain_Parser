@@ -4,6 +4,8 @@ Preprocessing/scripts/logs/
 Analysis/data/pickles/
 Analysis/data/snapshots/
 Analysis/data/graphs
+Scripts/data
+Scripts/.*
 *.pyc
 *.log
 *.p

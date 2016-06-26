@@ -57,7 +57,7 @@ class Crawler(object):
         start=True,
         rpc_port=8545,
         host="http://localhost",
-        delay=0.001
+        delay=0.0001
     ):
         """Initialize the Crawler."""
         logging.debug("Starting Crawler")

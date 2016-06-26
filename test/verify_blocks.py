@@ -5,7 +5,8 @@ import json
 import sys
 sys.path.append("../Preprocessing")
 from Crawler import Crawler
-
+import pprint
+import pdb
 def test_blocks():
     """
     Check transactions in each of a random sample of blocks.
@@ -17,11 +18,11 @@ def test_blocks():
     c = Crawler.Crawler(start=False)
     client = c.mongo_client
 
-    sample = random.sample(range(1490000, 1500000), 500)
+    sample = random.sample(range(1, 1700000), 100)
     N = len(sample)
 
     # Track the number of times the number of transactions is different.
-    wrong_nums = 0
+    wrong_blocks = list()
     num_error = "Incorrect number of transactions in {}% of {} blocks."
 
     blocks = client.find({"number": {"$in":sample}})
@@ -31,7 +32,9 @@ def test_blocks():
         ethchain = json.loads(requests.get(uri).text)
 
         # Check the number of transactions in the block
-        if len(ethchain["data"]) == len(block["transactions"]):
-            wrong_nums += 1
+        if len(ethchain["data"]) != len(block["transactions"]):
+            wrong_blocks.append(n)
 
+    wrong_nums = len(wrong_blocks)
+    pprint.pprint(wrong_blocks)
     assert wrong_nums == 0, num_error.format(100.*wrong_nums/N, N)
