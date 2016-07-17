@@ -28,6 +28,7 @@ if __name__ == "__main__":
     max_block = 1600000
     resolution = 1000
     CSVFILE = "blockchain.csv"
+    STEP = 1000
 
     if os.path.exists(CSVFILE):
         prev_max_block = syncCSV(CSVFILE)
@@ -36,4 +37,6 @@ if __name__ == "__main__":
     for i in tqdm.tqdm(range(max_block//resolution)):
         if t.end_block > prev_max_block:
             blocks = ParsedBlocks(t)
-        t.extend(1000)
+            t.extend(STEP)
+        else:
+            t.end_block += STEP
