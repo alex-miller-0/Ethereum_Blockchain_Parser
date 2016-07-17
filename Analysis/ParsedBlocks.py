@@ -111,7 +111,7 @@ class ParsedBlocks(object):
 
     def _setHeaders(self):
         """Get the headers that will be used in the CSV data file."""
-        self.headers = self.data.keys()
+        self.headers = sorted(self.data.keys())
 
     def _getData(self):
         """Return a list of the data in the order of the headers."""
