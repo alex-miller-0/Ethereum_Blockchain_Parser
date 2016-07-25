@@ -94,10 +94,6 @@ class ParsedBlocks(object):
             "p2p_txn_count": 0,
             "peer_txns_w_data": 0,
             "address_count": 0,
-            "mean_balance": 0,
-            "median_balance": 0,
-            "std_balance": 0,
-            "sum_balance": 0,
             "total_supply": 7200990.5 + 5.0*self.end_block
             }
 
@@ -143,24 +139,6 @@ class ParsedBlocks(object):
         if not self.contracts[addr] and not self.tags[addr]:
             return True
         return False
-
-    def _peerWealth(self, balances):
-        '''
-        Determine the distributions of wealth across all addresses.
-
-        Takes a list of balances (floats)
-        Returns tuple (mean, median, std, sum)
-        '''
-        sum_bal = sum(balances)
-        len_bal = len(balances)
-
-        if len_bal:
-            mean = sum_bal / len_bal
-            median = balances[round(len(balances)/2) + 1]
-            std = sum([(i-mean)**2 for i in balances])**0.5 / len_bal
-            return (mean, median, std, sum_bal)
-        else:
-            return (0, 0, 0, 0)
 
     # PUBLIC METHODS
 
@@ -223,13 +201,6 @@ class ParsedBlocks(object):
         # Record all unique addresses up to this point
         addr_set = set(address_dump)
         self.data["address_count"] = len(addr_set)
-
-        # Statistics
-        (mean, median, std, sum_bal) = self._peerWealth(balances)
-        self.data['mean_balance'] = mean
-        self.data['median_balance'] = median
-        self.data['std_balance'] = std
-        self.data['sum_balance'] = sum_bal
 
     def saveData(self):
         """Save the data to a line in the CSV file."""
