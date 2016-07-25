@@ -29,11 +29,14 @@ if __name__ == "__main__":
     resolution = 1000
     CSVFILE = "blockchain.csv"
     STEP = 1000
+    prev_max_block = 0
 
     if os.path.exists(CSVFILE):
         prev_max_block = syncCSV(CSVFILE)
 
-    t = TxnGraph(1, 1000)
+    # Always start at block 1 because the data is cumulative.
+    # Resume at previous block + 1000
+    t = TxnGraph(1, prev_max_block+1000)
     for i in tqdm.tqdm(range(max_block//resolution)):
         if t.end_block > prev_max_block:
             blocks = ParsedBlocks(t)

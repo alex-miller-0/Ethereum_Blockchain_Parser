@@ -5,7 +5,7 @@ from ContractMap import ContractMap
 import prices
 import os
 import csv
-
+from collections import defaultdict
 
 class ParsedBlocks(object):
     """
@@ -93,9 +93,11 @@ class ParsedBlocks(object):
             "p2p_txn_sum": 0,
             "p2p_txn_count": 0,
             "peer_txns_w_data": 0,
-            "new_addresses": 0,
-            "peer_wealth_mean": 0,
-            "peer_wealth_std": 0,
+            "address_count": 0,
+            "mean_balance": 0,
+            "median_balance": 0,
+            "std_balance": 0,
+            "sum_balance": 0,
             "total_supply": 7200990.5 + 5.0*self.end_block
             }
 
@@ -142,6 +144,24 @@ class ParsedBlocks(object):
             return True
         return False
 
+    def _peerWealth(self, balances):
+        '''
+        Determine the distributions of wealth across all addresses.
+
+        Takes a list of balances (floats)
+        Returns tuple (mean, median, std, sum)
+        '''
+        sum_bal = sum(balances)
+        len_bal = len(balances)
+
+        if len_bal:
+            mean = sum_bal / len_bal
+            median = balances[round(len(balances)/2) + 1]
+            std = sum([(i-mean)**2 for i in balances])**0.5 / len_bal
+            return (mean, median, std, sum_bal)
+        else:
+            return (0, 0, 0, 0)
+
     # PUBLIC METHODS
 
     def parse(self):
@@ -152,16 +172,25 @@ class ParsedBlocks(object):
         vWeights = self.txn_graph.graph.vertex_properties["weight"]
         eWeights = self.txn_graph.graph.edge_properties["weight"]
 
+        # A dictionary mapping vertex --> balance
+        balances = list()
+
         # Iterate over vertices (i.e. addresses)
         for v in self.txn_graph.graph.vertices():
             if self._isPeer(v):
-                self.peer_wealth.append(vWeights[v])
+                balances.append(vWeights[v])
 
         # Iterates over a bunch of Edge instances (i.e. transactions)
         address_prop = self.txn_graph.graph.vertex_properties["address"]
+
+        # All of the addresses encountered
+        address_dump = list()
+
         for e in self.txn_graph.graph.edges():
             to_addr = address_prop[e.target()]
             from_addr = address_prop[e.source()]
+            address_dump.append(to_addr)
+            address_dump.append(from_addr)
 
             amount = eWeights[e]
             # The edgeWeight of this edge is the amount of the transaction
@@ -190,6 +219,17 @@ class ParsedBlocks(object):
             if self._isPeer(to_addr) and self._isPeer(from_addr):
                 self.data["p2p_txn_sum"] += amount
                 self.data["p2p_txn_count"] += 1
+
+        # Record all unique addresses up to this point
+        addr_set = set(address_dump)
+        self.data["address_count"] = len(addr_set)
+
+        # Statistics
+        (mean, median, std, sum_bal) = self._peerWealth(balances)
+        self.data['mean_balance'] = mean
+        self.data['median_balance'] = median
+        self.data['std_balance'] = std
+        self.data['sum_balance'] = sum_bal
 
     def saveData(self):
         """Save the data to a line in the CSV file."""
