@@ -2,10 +2,10 @@
 
 import tags
 from ContractMap import ContractMap
-import prices
 import os
 import csv
-from collections import defaultdict
+import requests
+
 
 class ParsedBlocks(object):
     """
@@ -67,9 +67,6 @@ class ParsedBlocks(object):
         self.start_timestamp = txn_graph.start_timestamp
         self.end_timestamp = txn_graph.end_timestamp
 
-        # Historical prices
-        self.price = self._getPrice()
-
         # Relevent metrics:
         # Note that the total supply is 5*block_n + the supply
         # at genesis. This neglects uncle rewards, which are
@@ -93,8 +90,9 @@ class ParsedBlocks(object):
             "p2p_txn_sum": 0,
             "p2p_txn_count": 0,
             "peer_txns_w_data": 0,
-            "address_count": 0,
-            "total_supply": 7200990.5 + 5.0*self.end_block
+            "num_addr": 0,
+            "total_supply": 7200990.5 + 5.0*self.end_block,
+            "priceUSD": self._getPrice(self.start_timestamp, self.end_timestamp)
             }
 
         self.peer_wealth = list()
@@ -121,14 +119,23 @@ class ParsedBlocks(object):
             w = csv.DictWriter(f, fieldnames=self.headers)
             w.writeheader()
 
-    def _getPrice(self):
-        """Get the average of price between these two blocks."""
-        return prices.getPrice(
-            prices.loadRaw(),
-            "weightedAverage",
-            self.start_timestamp,
-            self.end_timestamp
+    def _getPrice(self, start, end, period=300):
+        """
+        Get data from Poloniex API given a period.
+        Start and end are both UNIX timestamps (integers).
+        This will return the price at the close of the last period between
+        these blocks.
+        """
+        base = "https://poloniex.com/public?command=returnChartData"
+        pair = "USDT_ETH"
+        start = start
+        end = end
+        period = period
+        req_str = "{}&currencyPair={}&start={}&end={}&period={}".format(
+            base, pair, start, end, period
         )
+        data = requests.get(req_str).json()
+        return data[len(data)-1]['close']
 
     def _isPeer(self, addr):
         """
@@ -200,7 +207,7 @@ class ParsedBlocks(object):
 
         # Record all unique addresses up to this point
         addr_set = set(address_dump)
-        self.data["address_count"] = len(addr_set)
+        self.data["num_addr"] = len(addr_set)
 
     def saveData(self):
         """Save the data to a line in the CSV file."""
