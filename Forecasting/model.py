@@ -23,25 +23,22 @@ class Forecast(object):
         self.USD = USD
         self.ETH = ETH
         self.model = None
-        self.getData(parse_df(filename))
+        self._getData(parse_df(filename))
 
-    def getData(self, filename):
+    def _getData(self, filename):
         """Run through the pipeline and load the data."""
         endog, exog, self.end_blocks = pipeline(filename)
-        exog_train, exog_test, endog_train, endog_test = train_test_split(
-            exog, endog, test_size=0.3
-        )
-        self.exog_train = exog_train
-        self.exog_test = exog_test
-        self.endog_train = endog_train
-        self.endog_test = endog_test
+        self.endog = endog
+        self.exog = exog
 
-    def fitARIMA(self, p, d, q, endog, exog):
+    def _fitARIMA(self, p, d, q, endog, exog):
         """Fit an ARIMA model give a set of parameters. Returns model."""
         model = arima_model.ARIMA(
             endog,
             order=(p, d, q),
-            exog=exog).fit(transparams=False)
+            exog=exog).fit(
+                transparams=False
+            )
         return model
 
     def optimizeARIMA(self, Ap, Ad, Aq, endog, exog):
@@ -58,13 +55,30 @@ class Forecast(object):
             for d in Ad:
                 for q in Aq:
                     # Replace the model if AIC is lower
-                    _model = self.fitARIMA(p, d, q, endog=endog, exog=exog)
-                    if not best_aic:
-                        best_model = _model
-                        best_aic = _model.aic
-                    elif _model.aic < best_aic:
-                        best_model = _model
-                        best_aic = _model.aic
+                    try:
+                        _model = self._fitARIMA(p, d, q, endog=endog, exog=exog)
+                        if not best_aic:
+                            print("Updaing model ({}, {}, {})".format(p, d, q))
+                            best_model = _model
+                            best_aic = _model.aic
+                        elif _model.aic < best_aic:
+                            print("Updaing model ({}, {}, {})".format(p, d, q))
+                            best_model = _model
+                            best_aic = _model.aic
+                    except:
+                        pass
 
         # Reset the global model
         self.model = best_model
+
+    def predictARIMA(self, start, end):
+        """
+        Make a series of n predictions given an ARIMA model.
+
+        By default, the predictions will be made on top of self.endog_train
+
+        Note that extra lagged exogenous time slices may need to be passed
+        depending on the p level. (Pass end-start + p exogenous slices)
+        """
+        prediction = self.model.predict(start, end, exog=self.exog[start:end])
+        return prediction

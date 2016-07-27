@@ -37,6 +37,7 @@ if __name__ == "__main__":
     # Resume at previous block + 1000
     t = TxnGraph(1, prev_max_block + STEP)
     for i in tqdm.tqdm(range(max_block//resolution)):
+
         if t.end_block > prev_max_block:
             blocks = ParsedBlocks(t)
             t.extend(STEP)

@@ -6,7 +6,7 @@ import sys
 sys.path.append("../Preprocessing")
 from Crawler import Crawler
 import pprint
-import pdb
+
 def test_blocks():
     """
     Check transactions in each of a random sample of blocks.
@@ -25,7 +25,7 @@ def test_blocks():
     wrong_blocks = list()
     num_error = "Incorrect number of transactions in {}% of {} blocks."
 
-    blocks = client.find({"number": {"$in":sample}})
+    blocks = client.find({"number": {"$in": sample}})
     for block in blocks:
         n = block["number"]
         uri = "https://etherchain.org/api/block/{}/tx".format(n)
