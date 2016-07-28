@@ -47,18 +47,24 @@ def pipeline(df):
     # Split into endog and exog
     endog, exog = endog_exog(df, diff_cols, lag=lag)
 
+    # Save endog and exog to temporary files for R
+    #endog.to_csv("R/endog.csv")
+    #exog.to_csv("R/exog.csv")
+
     return endog, exog, block_end
 
 
-def endog_exog(df, diff_cols, lag=1):
+def endog_exog(df, cols, lag=1):
     """
     Convert dataframe into endog and exog numpy arrays.
 
     Since everything is differenced, remove the first item in each array.
     """
-    exog = np.array(df[diff_cols])[1:]
-    endog = np.array(df["d_{}_priceUSD".format(lag)])[1:]
-    return endog, exog
+    diff_cols = ["d_{}_{}".format(lag, col) for col in cols]
+    exog = df[diff_cols][1:]
+    endog = df["d_{}_priceUSD".format(lag)][1:]
+
+    return np.array(endog), np.array(exog)
 
 
 def difference(df, cols, lag=1):

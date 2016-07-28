@@ -31,8 +31,10 @@ class Forecast(object):
         self.endog = endog
         self.exog = exog
 
-    def _fitARIMA(self, p, d, q, endog, exog):
+    def _fitARIMA(self, p, d, q, _endog, _exog):
         """Fit an ARIMA model give a set of parameters. Returns model."""
+        endog = np.array(_endog)
+        exog = np.array(_exog)
         model = arima_model.ARIMA(
             endog,
             order=(p, d, q),
@@ -40,6 +42,15 @@ class Forecast(object):
                 transparams=False
             )
         return model
+
+    def _pointPredict(self):
+        """Predict the next value of the ARIMA model."""
+        _last = self.model.nobs
+        _next = _last + 1
+        _lastExog = self.exog[-1:]
+        pred = self.model.predict(_last, _next, exog=_lastExog)
+        return pred
+
 
     def optimizeARIMA(self, Ap, Ad, Aq, endog, exog):
         """
@@ -56,7 +67,7 @@ class Forecast(object):
                 for q in Aq:
                     # Replace the model if AIC is lower
                     try:
-                        _model = self._fitARIMA(p, d, q, endog=endog, exog=exog)
+                        _model = self._fitARIMA(p, d, q, endog, exog)
                         if not best_aic:
                             print("Updaing model ({}, {}, {})".format(p, d, q))
                             best_model = _model
@@ -71,7 +82,7 @@ class Forecast(object):
         # Reset the global model
         self.model = best_model
 
-    def predictARIMA(self, start, end):
+    def predictARIMA(self, start, end, exog=None, dynamic=False):
         """
         Make a series of n predictions given an ARIMA model.
 
@@ -80,5 +91,10 @@ class Forecast(object):
         Note that extra lagged exogenous time slices may need to be passed
         depending on the p level. (Pass end-start + p exogenous slices)
         """
-        prediction = self.model.predict(start, end, exog=self.exog[start:end])
+        if exog == None:
+            exog = self.exog[start:end]
+
+        prediction = self.model.predict(
+            start, end, exog=self.exog[start:end], dynamic=dynamic
+        )
         return prediction
