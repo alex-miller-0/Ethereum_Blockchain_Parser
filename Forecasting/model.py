@@ -22,6 +22,9 @@ class Forecast(object):
         """Initialize the model with a filename and asset quantities."""
         self.USD = USD
         self.ETH = ETH
+        self.p = 0
+        self.d = 0
+        self.q = 0
         self.model = None
         self._getData(parse_df(filename))
 
@@ -31,7 +34,15 @@ class Forecast(object):
         self.endog = endog
         self.exog = exog
 
-    def _fitARIMA(self, p, d, q, _endog, _exog):
+    def _pointPredict(self):
+        """Predict the next value of the ARIMA model."""
+        _last = self.model.nobs
+        _next = _last + 1
+        _lastExog = self.exog[-1:]
+        pred = self.model.predict(_last, _next, exog=_lastExog)
+        return pred
+
+    def fitARIMAsm(self, p, d, q, _endog, _exog):
         """Fit an ARIMA model give a set of parameters. Returns model."""
         endog = np.array(_endog)
         exog = np.array(_exog)
@@ -43,16 +54,7 @@ class Forecast(object):
             )
         return model
 
-    def _pointPredict(self):
-        """Predict the next value of the ARIMA model."""
-        _last = self.model.nobs
-        _next = _last + 1
-        _lastExog = self.exog[-1:]
-        pred = self.model.predict(_last, _next, exog=_lastExog)
-        return pred
-
-
-    def optimizeARIMA(self, Ap, Ad, Aq, endog, exog):
+    def optimizeARIMAsm(self, Ap, Ad, Aq, endog, exog):
         """
         Find an optimal ARIMA model given lists of p, d, and q.
 
@@ -72,17 +74,23 @@ class Forecast(object):
                             print("Updaing model ({}, {}, {})".format(p, d, q))
                             best_model = _model
                             best_aic = _model.aic
+                            self.p = p
+                            self.d = d
+                            self.q = q
                         elif _model.aic < best_aic:
                             print("Updaing model ({}, {}, {})".format(p, d, q))
                             best_model = _model
                             best_aic = _model.aic
+                            self.p = p
+                            self.d = d
+                            self.q = q
                     except:
                         pass
 
         # Reset the global model
         self.model = best_model
 
-    def predictARIMA(self, start, end, exog=None, dynamic=False):
+    def predictARIMAsm(self, start, end, exog=None, dynamic=False):
         """
         Make a series of n predictions given an ARIMA model.
 
@@ -98,3 +106,22 @@ class Forecast(object):
             start, end, exog=self.exog[start:end], dynamic=dynamic
         )
         return prediction
+
+    # Predictions in R
+    #####################
+
+    def predictARIMA_R(self, endog=None, exog=None):
+        """
+        Pointwise prediction using forecast package in R.
+        """
+        if endog is None:
+            endog = self.endog
+        if exog is None:
+            exog = self.exog
+
+        R_push_csv(endog, exog)
+        R_predict()
+        pred = R_pull_csv()
+        #R_cleanup()
+
+        return pred

@@ -2,6 +2,7 @@
 import copy
 import numpy as np
 import pandas as pd
+from r_io_util import *
 
 
 def pipeline(df):
@@ -47,11 +48,7 @@ def pipeline(df):
     # Split into endog and exog
     endog, exog = endog_exog(df, diff_cols, lag=lag)
 
-    # Save endog and exog to temporary files for R
-    #endog.to_csv("R/endog.csv")
-    #exog.to_csv("R/exog.csv")
-
-    return endog, exog, block_end
+    return np.array(endog), np.array(exog), block_end
 
 
 def endog_exog(df, cols, lag=1):
@@ -64,7 +61,7 @@ def endog_exog(df, cols, lag=1):
     exog = df[diff_cols][1:]
     endog = df["d_{}_priceUSD".format(lag)][1:]
 
-    return np.array(endog), np.array(exog)
+    return endog, exog
 
 
 def difference(df, cols, lag=1):

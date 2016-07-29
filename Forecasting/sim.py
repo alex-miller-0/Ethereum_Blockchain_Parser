@@ -1,5 +1,7 @@
 """Simulate a trading bot by predicting a series of values using train/test sets."""
 from model import Forecast
+import numpy as np
+
 
 def simulate():
     """
@@ -25,22 +27,27 @@ def simulate():
     test_exog = f.exog[ixSplit:]
 
     # Determine an ARIMA model
-    print("Determining model...")
-    ix = [0, 1, 2]
-    f.optimizeARIMA(ix, ix, ix, train_endog, train_exog)
+    #print("Determining model...")
+    #ix = [0, 1, 2]
+    #f.optimizeARIMA(ix, ix, ix, train_endog, train_exog)
 
     # Make a series of predictions
     print("Making predictions...")
     preds = list()
-    for i in range(len(test_exog)):
+    #for i in range(len(test_exog)):
+    for i in range(5):
         # Make the prediction
-        _start = f.endog.shape[0] - 1
-        _end = _start + 1
-        preds.append(f.model.predict(_start, _end, exog=f.exog[-1:]))
+        pred = f.predictARIMA_R()
+        preds.append(pred)
 
-        # Append the model's data
-        f.exog.append(test_exog.pop(0))
-        f.endog.append(test_endog.pop(0))
+        # Append the model's data with the first data in the test arrays
+        # Note that np.delete is analagous to pop, but -1 indicates the first
+        # item in the array.
+        f.exog = np.append(f.exog, np.delete(test_exog, -1, axis=0), axis=0)
+        f.endog = np.append(f.endog, np.delete(test_endog, -1, axis=0), axis=0)
+
+        # Refit the model
+        # f.model = f.fitARIMAsm(f.p, f.d, f.q, f.endog, f.exog)
 
     print(preds)
 
