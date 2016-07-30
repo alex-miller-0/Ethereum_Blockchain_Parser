@@ -110,7 +110,7 @@ class Forecast(object):
     # Predictions in R
     #####################
 
-    def predictARIMA_R(self, endog=None, exog=None):
+    def predictARIMA_R(self, p, d, q, endog=None, exog=None):
         """
         Pointwise prediction using forecast package in R.
         """
@@ -120,8 +120,8 @@ class Forecast(object):
             exog = self.exog
 
         R_push_csv(endog, exog)
-        R_predict()
+        R_predict(p, d, q)
         pred = R_pull_csv()
-        #R_cleanup()
+        R_cleanup()
 
         return pred

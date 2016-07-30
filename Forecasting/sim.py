@@ -1,9 +1,10 @@
 """Simulate a trading bot by predicting a series of values using train/test sets."""
 from model import Forecast
 import numpy as np
+import copy
 
 
-def simulate():
+def simulate(p=1, d=0, q=0):
     """
     This bot will perform the following steps.
 
@@ -14,43 +15,49 @@ def simulate():
         to both the endogenous and exogenous variables in the Forecast object
         before making the next prediction.
     """
-    print("Loading data...")
+    #print("Loading data...")
     f = Forecast('blockchain.csv')
 
     # Define an index on which to split (like 80% of the way)
-    ixSplit = 0.8 * f.endog.shape[0]
-    print("yay")
+    ixSplit = int(0.8 * f.endog.shape[0])
+
     # Define training and test sets
     train_endog = f.endog[:ixSplit]
     train_exog = f.exog[:ixSplit]
     test_endog = f.endog[ixSplit:]
     test_exog = f.exog[ixSplit:]
 
-    # Determine an ARIMA model
-    #print("Determining model...")
-    #ix = [0, 1, 2]
-    #f.optimizeARIMA(ix, ix, ix, train_endog, train_exog)
+    # Update the instance
+    f.endog = train_endog
+    f.exog = train_exog
+
+    # Copy test exogenous variables to compare with the predictions
+    endog_expected = copy.deepcopy(test_endog)
 
     # Make a series of predictions
-    print("Making predictions...")
+    #print("Making predictions...")
     preds = list()
-    #for i in range(len(test_exog)):
-    for i in range(5):
+    for i in range(len(test_exog)):
         # Make the prediction
-        pred = f.predictARIMA_R()
+        pred = f.predictARIMA_R(p, d, q, endog=f.endog, exog=f.exog)
         preds.append(pred)
-
         # Append the model's data with the first data in the test arrays
         # Note that np.delete is analagous to pop, but -1 indicates the first
         # item in the array.
-        f.exog = np.append(f.exog, np.delete(test_exog, -1, axis=0), axis=0)
-        f.endog = np.append(f.endog, np.delete(test_endog, -1, axis=0), axis=0)
+        f.exog = np.append(f.exog, [test_exog[0]], axis=0)
+        test_exog = np.delete(test_exog, 0, axis=0)
+        f.endog = np.append(f.endog, [test_endog[0]], axis=0)
+        test_endog = np.delete(test_endog, 0)
 
-        # Refit the model
-        # f.model = f.fitARIMAsm(f.p, f.d, f.q, f.endog, f.exog)
+    return preds, endog_expected
 
-    print(preds)
 
+def score_simulation(preds, endog_expected):
+    """Score a simulation based on mean squared error."""
+    MSE = 0
+    for i in range(len(preds)):
+        MSE += (preds[i] - endog_expected[i])**2
+    return MSE
 
 if __name__ == "__main__":
-    simulate()
+    preds, endog_expected = simulate()

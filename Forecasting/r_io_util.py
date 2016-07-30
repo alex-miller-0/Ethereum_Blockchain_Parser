@@ -16,9 +16,9 @@ def R_pull_csv():
     return pd.read_csv("R/tmp.csv")['pred'][0]
 
 
-def R_predict():
+def R_predict(p, d, q):
     """Run Rscript to produce a pointwise prediction given CSV files."""
-    subprocess.call(["Rscript", "R/arima.R"])
+    subprocess.call(["Rscript", "R/arima.R", str(p), str(d), str(q)])
 
 
 def R_cleanup():
