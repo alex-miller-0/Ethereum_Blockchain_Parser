@@ -8,8 +8,8 @@ import subprocess
 import signal
 import copy
 from tags import tags
-import util
-env = util.set_env()
+import analysis_util
+env = analysis_util.set_env()
 DIR = env["mongo"] + "/data"
 DATADIR = env["txn_data"]
 

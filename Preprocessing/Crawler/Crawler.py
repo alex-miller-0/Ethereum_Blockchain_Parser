@@ -1,7 +1,7 @@
 """A client to interact with node and to save data to mongo."""
 
 from pymongo import MongoClient
-from . import util
+import crawler_util
 import requests
 import json
 import sys
@@ -15,7 +15,7 @@ DIR = os.environ['BLOCKCHAIN_MONGO_DATA_DIR']
 LOGFIL = "crawler.log"
 if "BLOCKCHAIN_ANALYSIS_LOGS" in os.environ:
     LOGFIL = "{}/{}".format(os.environ['BLOCKCHAIN_ANALYSIS_LOGS'], LOGFIL)
-util.refresh_logger(LOGFIL)
+crawler_util.refresh_logger(LOGFIL)
 logging.basicConfig(filename=LOGFIL, level=logging.DEBUG)
 logging.getLogger("urllib3").setLevel(logging.WARNING)
 
@@ -65,7 +65,7 @@ class Crawler(object):
         self.headers = {"content-type": "application/json"}
 
         # Initializes to default host/port = localhost/27017
-        self.mongo_client = util.initMongo(MongoClient())
+        self.mongo_client = crawler_util.initMongo(MongoClient())
         # The max block number that is in mongo
         self.max_block_mongo = None
         # The max block number in the public blockchain
@@ -73,7 +73,7 @@ class Crawler(object):
         # Record errors for inserting block data into mongo
         self.insertion_errors = list()
         # Make a stack of block numbers that are in mongo
-        self.block_queue = util.makeBlockQueue(self.mongo_client)
+        self.block_queue = crawler_util.makeBlockQueue(self.mongo_client)
         # The delay between requests to geth
         self.delay = delay
 
@@ -100,7 +100,7 @@ class Crawler(object):
     def getBlock(self, n):
         """Get a specific block from the blockchain and filter the data."""
         data = self._rpcRequest("eth_getBlockByNumber", [n, True], "result")
-        block = util.decodeBlock(data)
+        block = crawler_util.decodeBlock(data)
         return block
 
     def highestBlockEth(self):
@@ -110,13 +110,13 @@ class Crawler(object):
 
     def saveBlock(self, block):
         """Insert a given parsed block into mongo."""
-        e = util.insertMongo(self.mongo_client, block)
+        e = crawler_util.insertMongo(self.mongo_client, block)
         if e:
             self.insertion_errors.append(e)
 
     def highestBlockMongo(self):
         """Find the highest numbered block in the mongo database."""
-        highest_block = util.highestBlock(self.mongo_client)
+        highest_block = crawler_util.highestBlock(self.mongo_client)
         logging.info("Highest block found in mongodb:{}".format(highest_block))
         return highest_block
 

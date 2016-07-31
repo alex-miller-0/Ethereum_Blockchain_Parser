@@ -7,7 +7,6 @@ import pickle
 import os
 import time
 import pymongo
-import util
 DIR = "."
 
 class ContractMap(object):

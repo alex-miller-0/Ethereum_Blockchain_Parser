@@ -2,7 +2,7 @@
 from model import Forecast
 import numpy as np
 import copy
-
+from multiprocessing import Pool
 
 def simulate(p=1, d=0, q=0):
     """
@@ -59,5 +59,30 @@ def score_simulation(preds, endog_expected):
         MSE += (preds[i] - endog_expected[i])**2
     return MSE
 
+
+def test_f(gen):
+    p = gen[0][0]
+    d = gen[0][1]
+    q = gen[0][2]
+    try:
+        preds, exog_expected = simulate(p, d, q)
+        score = score_simulation(preds, exog_expected)
+    except:
+        score = 0
+    return (score, p, d, q)
+
+
 if __name__ == "__main__":
-    preds, endog_expected = simulate()
+    POOL = Pool(maxtasksperchild=500)
+    p_range = range(5)
+    d_range = range(5)
+    q_range = [0] * 5
+    gen = list()
+    for _p in p_range:
+        for _d in d_range:
+            gen.append((_p, _d, 0))
+    _gen = zip(gen)
+    x = POOL.map(test_f, _gen)
+    print("Done")
+    print(x)
+    # [(0, 0, 0, 0), (0, 0, 1, 0), (0, 0, 2, 0), (0, 0, 3, 0), (0, 0, 4, 0), (29.292981789631671, 1, 0, 0), (0, 1, 1, 0), (0, 1, 2, 0), (0, 1, 3, 0), (0, 1, 4, 0), (0, 2, 0, 0), (0, 2, 1, 0), (0, 2, 2, 0), (0, 2, 3, 0), (0, 2, 4, 0), (0, 3, 0, 0), (0, 3, 1, 0), (54.253053572867898, 3, 2, 0), (0, 3, 3, 0), (0, 3, 4, 0), (0, 4, 0, 0), (0, 4, 1, 0), (0, 4, 2, 0), (0, 4, 3, 0), (250.45917084881501, 4, 4, 0)]
