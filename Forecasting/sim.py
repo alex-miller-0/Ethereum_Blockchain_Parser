@@ -52,6 +52,11 @@ def simulate(p=1, d=0, q=0):
     return preds, endog_expected
 
 
+def decisionRule():
+    """Decide whether to buy, sell, or hold."""
+    pass
+
+
 def score_simulation(preds, endog_expected):
     """Score a simulation based on mean squared error."""
     MSE = 0

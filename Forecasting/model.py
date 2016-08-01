@@ -114,11 +114,19 @@ class Forecast(object):
         """
         Pointwise prediction using forecast package in R.
         """
+        # Define endog and exog vars
         if endog is None:
             endog = self.endog
         if exog is None:
             exog = self.exog
 
+        # Use at most 100 points to predict the future
+        if len(endog) > 300:
+            endog = endog[-300:]
+        if len(exog) > 300:
+            exog = exog[-300:]
+
+        # Pipe data through R and use its Arima model
         R_push_csv(endog, exog)
         R_predict(p, d, q)
         pred = R_pull_csv()
