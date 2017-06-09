@@ -99,7 +99,7 @@ class Crawler(object):
 
     def getBlock(self, n):
         """Get a specific block from the blockchain and filter the data."""
-        data = self._rpcRequest("eth_getBlockByNumber", [n, True], "result")
+        data = self._rpcRequest("eth_getBlockByNumber", [hex(n), True], "result")
         block = crawler_util.decodeBlock(data)
         return block
 
