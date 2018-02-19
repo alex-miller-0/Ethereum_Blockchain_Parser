@@ -1,3 +1,4 @@
+
 """Build a hash map of all contract addresses on the Ethereum network."""
 
 from collections import defaultdict
@@ -63,7 +64,7 @@ class ContractMap(object):
     def _checkGeth(self):
         """Make sure geth is running in RPC on port 8545."""
         try:
-            self._rpcRequest("eth_getBlockByNumber", [1, True], "id")
+            self._rpcRequest("eth_getBlockByNumber", [hex(1), True], "id")
             return
         except Exception as err:
             assert not err, "Geth cannot be reached: {}".format(err)
