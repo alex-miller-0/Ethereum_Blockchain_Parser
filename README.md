@@ -75,7 +75,7 @@ We will use mongo to essentially copy each block served by Geth, preserving its 
 
 ### python3
 
-This was written for python 3.4. Some things will probably break if you try to do this analysis in python 2.
+This was written for python 3.4 with the packages: contractmap, tqdm and requests. Some things will probably break if you try to do this analysis in python 2.
 
 
 ## Workflow

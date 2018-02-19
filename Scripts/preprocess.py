@@ -20,7 +20,7 @@ subprocess.call([
 
 print("Booting processes.")
 # Catch up with the crawler
-c = Crawler.Crawler()
+c = Crawler()
 
 print("Updating contract hash map.")
 # Update the contract addresses that have been interacted with
