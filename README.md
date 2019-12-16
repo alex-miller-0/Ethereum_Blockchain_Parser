@@ -1,5 +1,7 @@
 # Ethereum Blockchain Parser
 
+*This project is not maintained. It was mainly for learning purposes and is likely outdated.*
+
 This is a project to parse the Ethereum blockchain from a local geth node. Blockchains are perfect data sets because they contain every transaction ever made on the network. This is valuable data if you want to analyze the network, but Ethereum stores its blockchain in [RLP](https://github.com/ethereum/wiki/wiki/RLP) encoded binary blobs within a series of LevelDB files and these are surprisingly difficult to access, even given the available tools. This project takes the approach of querying a local node via [JSON-RPC](https://github.com/ethereum/wiki/wiki/JSON-RPC), which returns unencoded transactional data, and then moves that data to a mongo database.
 
 ![Blocks 1 to 120000](.content/1_120000.jpg)
